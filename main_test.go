@@ -55,6 +55,44 @@ func TestBuildAppAndMuxFromEnv(t *testing.T) {
 	}
 }
 
+func TestBuildAppAndMuxFromEnvEndpointTLSSkip(t *testing.T) {
+	t.Setenv("SECURECOOKIE_HASH_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("SECURECOOKIE_BLOCK_KEY", "abcdef0123456789abcdef0123456789")
+
+	t.Run("skip TLS when S3_ENDPOINT_TLSSKIP=true", func(t *testing.T) {
+		t.Setenv("S3_ENDPOINT_TLSSKIP", "true")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if !a.endpointSkipTls {
+			t.Fatalf("expected endpointSkipTls=true when S3_ENDPOINT_TLSSKIP=true")
+		}
+	})
+
+	t.Run("do not skip TLS when S3_ENDPOINT_TLSSKIP=false", func(t *testing.T) {
+		t.Setenv("S3_ENDPOINT_TLSSKIP", "false")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if a.endpointSkipTls {
+			t.Fatalf("expected endpointSkipTls=false when S3_ENDPOINT_TLSSKIP=false")
+		}
+	})
+
+	t.Run("do not skip TLS when S3_ENDPOINT_TLSSKIP unset", func(t *testing.T) {
+		t.Setenv("S3_ENDPOINT_TLSSKIP", "")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if a.endpointSkipTls {
+			t.Fatalf("expected endpointSkipTls=false when S3_ENDPOINT_TLSSKIP unset")
+		}
+	})
+}
+
 func TestBuildAppAndMuxFromEnvInvalidSecureCookieConfig(t *testing.T) {
 	t.Setenv("SECURECOOKIE_HASH_KEY", "short")
 	t.Setenv("SECURECOOKIE_BLOCK_KEY", "1234567890123456")

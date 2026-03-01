@@ -24,3 +24,29 @@ func TestLogRequests(t *testing.T) {
 		t.Fatalf("expected 204, got %d", rec.Code)
 	}
 }
+
+func TestKeepPrintable(t *testing.T) {
+	tests := []struct {
+		in   rune
+		want rune
+	}{
+		{'\n', '_'},
+		{'\r', '_'},
+		{0x00, '_'},
+		{0x1f, '_'},
+		{0x7f, '_'},
+		{0x80, '_'},
+		{0x9f, '_'},
+		{0x2028, '_'},
+		{0x2029, '_'},
+		{'A', 'A'},
+		{'/', '/'},
+		{' ', ' '},
+		{0xa0, 0xa0}, // non-breaking space: above C1 range, not filtered
+	}
+	for _, tc := range tests {
+		if got := keepPrintable(tc.in); got != tc.want {
+			t.Errorf("keepPrintable(%U) = %U, want %U", tc.in, got, tc.want)
+		}
+	}
+}
