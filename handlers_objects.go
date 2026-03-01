@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -100,7 +100,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 		tags = tagsToKVs(tagOut.TagSet)
 	} else {
 		tagErrStr = tagErr.Error()
-		log.Printf("GetObjectTagging failed (non-fatal): %v", tagErr)
+		slog.Warn("GetObjectTagging failed", "bucket", bucket, "key", key, "error", tagErr)
 	}
 
 	// "System metadata"/headers you often care about

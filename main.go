@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -26,12 +25,12 @@ type app struct {
 }
 
 func main() {
-
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	slog.SetDefault(logger)
 	if err := runServer(); err != nil {
-		log.Fatal(err)
+		slog.Error("server startup failed", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -51,7 +50,7 @@ func runServer() error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	log.Printf("S3 Viewer running on http://localhost%s (region=%s)", listen, a.region)
+	slog.Info("s3 viewer listening", "addr", listen, "region", a.region)
 	return startHTTPServer(srv)
 }
 

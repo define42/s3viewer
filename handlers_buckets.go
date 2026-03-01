@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
@@ -129,7 +129,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		bucketTags = tagsToKVs(bucketTagOut.TagSet)
 	} else if !isNoSuchTagSetError(bucketTagErr) {
 		bucketTagError = "unavailable"
-		log.Printf("GetBucketTagging failed in bucket browse (non-fatal): %v", bucketTagErr)
+		slog.Warn("GetBucketTagging failed in bucket browse", "bucket", bucket, "error", bucketTagErr)
 	}
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
@@ -191,7 +191,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			metadata = mapToKVs(head.Metadata)
 		} else {
 			metadataErrStr = "unavailable"
-			log.Printf("HeadObject failed in bucket browse (non-fatal): %v", headErr)
+			slog.Warn("HeadObject failed in bucket browse", "bucket", bucket, "key", key, "error", headErr)
 		}
 
 		tagOut, tagErr := s3Client.GetObjectTagging(r.Context(), &s3.GetObjectTaggingInput{
@@ -202,7 +202,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			tags = tagsToKVs(tagOut.TagSet)
 		} else {
 			tagErrStr = "unavailable"
-			log.Printf("GetObjectTagging failed in bucket browse (non-fatal): %v", tagErr)
+			slog.Warn("GetObjectTagging failed in bucket browse", "bucket", bucket, "key", key, "error", tagErr)
 		}
 
 		objects = append(objects, objRow{

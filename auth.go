@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -57,7 +56,7 @@ func newSecureCookieFromEnv() (*securecookie.SecureCookie, error) {
 		if err != nil {
 			return nil, fmt.Errorf("generate hash key: %w", err)
 		}
-		log.Printf("warning: SECURECOOKIE_HASH_KEY not set; generated ephemeral key")
+		slog.Warn("SECURECOOKIE_HASH_KEY not set; generated ephemeral key")
 	}
 	if len(hashKey) < 32 {
 		return nil, fmt.Errorf("SECURECOOKIE_HASH_KEY must be at least 32 bytes")
@@ -70,7 +69,7 @@ func newSecureCookieFromEnv() (*securecookie.SecureCookie, error) {
 		if err != nil {
 			return nil, fmt.Errorf("generate block key: %w", err)
 		}
-		log.Printf("warning: SECURECOOKIE_BLOCK_KEY not set; generated ephemeral key")
+		slog.Warn("SECURECOOKIE_BLOCK_KEY not set; generated ephemeral key")
 	}
 	if l := len(blockKey); l != 16 && l != 24 && l != 32 {
 		return nil, fmt.Errorf("SECURECOOKIE_BLOCK_KEY must be 16, 24, or 32 bytes")
@@ -169,10 +168,10 @@ func (a *app) authenticatedS3Client(w http.ResponseWriter, r *http.Request) (*s3
 		a.renderError(w, "Could not initialize S3 client", err, http.StatusInternalServerError)
 		return nil, false
 	}
-	slog.Info("S3Viwer",
-		"User", sess.AccessKey,
-		"URL", r.URL.EscapedPath(),
-		"Method", r.Method,
+	slog.Info("request authenticated",
+		"user", sess.AccessKey,
+		"path", r.URL.EscapedPath(),
+		"method", r.Method,
 	)
 	return client, true
 }

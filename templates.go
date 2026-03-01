@@ -2,7 +2,7 @@ package main
 
 import (
 	"html/template"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -37,13 +37,13 @@ func (a *app) render(w http.ResponseWriter, name string, data map[string]any) {
 		data["IsAuthenticated"] = false
 	}
 	if err := a.tpl.ExecuteTemplate(w, name, data); err != nil {
-		log.Printf("template error: %v", err)
+		slog.Error("template execution failed", "template", name, "error", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
 	}
 }
 
 func (a *app) renderError(w http.ResponseWriter, msg string, err error, code int) {
-	log.Printf("%s: %v", msg, err)
+	slog.Error(msg, "error", err, "status_code", code)
 	w.WriteHeader(code)
 
 	// render a useful error page
