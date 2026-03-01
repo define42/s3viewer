@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -168,6 +169,11 @@ func (a *app) authenticatedS3Client(w http.ResponseWriter, r *http.Request) (*s3
 		a.renderError(w, "Could not initialize S3 client", err, http.StatusInternalServerError)
 		return nil, false
 	}
+	slog.Info("S3Viwer",
+		"User", sess.AccessKey,
+		"URL", r.URL.EscapedPath(),
+		"Method", r.Method,
+	)
 	return client, true
 }
 

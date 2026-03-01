@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"html/template"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -24,6 +26,10 @@ type app struct {
 }
 
 func main() {
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	slog.SetDefault(logger)
 	if err := runServer(); err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +47,7 @@ func runServer() error {
 
 	srv := &http.Server{
 		Addr:              listen,
-		Handler:           logRequests(mux),
+		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
