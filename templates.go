@@ -88,6 +88,8 @@ const htmlTemplates = `
     .muted { color: var(--muted); }
     .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 12px 0; background: var(--surface); }
+    .card-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .card-row .card { flex: 1 1 360px; margin: 12px 0; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: top; }
     th { background: var(--surface-alt); }
@@ -126,24 +128,26 @@ const htmlTemplates = `
 
 {{define "index"}}
 {{template "layout-start" .}}
-  <div class="card">
-    <h3 style="margin-top:0;">Go to bucket</h3>
-    <form method="post" action="/bucket/goto" class="row">
-      <input type="text" name="bucket" placeholder="bucket-name" required />
-      <button class="btn" type="submit">Open</button>
-    </form>
-    <p class="muted" style="margin-bottom:0;">
-      Use this for buckets you have access to but don’t own (so they won’t appear in the list).
-    </p>
-  </div>
+  <div class="card-row">
+    <div class="card">
+      <h3 style="margin-top:0;">Go to bucket</h3>
+      <form method="post" action="/bucket/goto" class="row">
+        <input type="text" name="bucket" placeholder="bucket-name" required />
+        <button class="btn" type="submit">Open</button>
+      </form>
+      <p class="muted" style="margin-bottom:0;">
+        Use this for buckets you have access to but don’t own (so they won’t appear in the list).
+      </p>
+    </div>
 
-  <div class="card">
-    <h3 style="margin-top:0;">Create bucket</h3>
-    <form method="post" action="/bucket/create" class="row">
-      <input type="text" name="bucket" placeholder="bucket-name" required />
-      <button class="btn" type="submit">Create</button>
-    </form>
-    <p class="muted" style="margin-bottom:0;">Bucket naming rules depend on provider; keep it DNS-safe.</p>
+    <div class="card">
+      <h3 style="margin-top:0;">Create bucket</h3>
+      <form method="post" action="/bucket/create" class="row">
+        <input type="text" name="bucket" placeholder="bucket-name" required />
+        <button class="btn" type="submit">Create</button>
+      </form>
+      <p class="muted" style="margin-bottom:0;">Bucket naming rules depend on provider; keep it DNS-safe.</p>
+    </div>
   </div>
 
   <h3>Buckets (owned)</h3>
@@ -169,10 +173,10 @@ const htmlTemplates = `
     <h3 style="margin-top:0;">Login</h3>
     <form method="post" action="/login">
       <div class="row">
-        <input type="text" name="access_key" value="{{.AccessKey}}" placeholder="Access Key" required />
+        <input type="text" name="access_key" value="{{.AccessKey}}" placeholder="Username or AccessKey" required />
       </div>
       <div class="row" style="margin-top:10px;">
-        <input type="password" name="secret_key" placeholder="Secret Key" required />
+        <input type="password" name="secret_key" placeholder="Password or SecretKey" required />
       </div>
       {{if hasErr .LoginError}}
         <p class="warn">
@@ -195,36 +199,38 @@ const htmlTemplates = `
     {{if .Prefix}}<span class="muted">Prefix: <code>{{.Prefix}}</code></span>{{end}}
   </div>
 
-  <div class="card">
-    <div class="row">
-      <strong>Path:</strong>
-      {{ $n := lenCrumbs .Crumbs }}
-      {{range $i, $c := .Crumbs}}
-        <a href="{{$c.URL}}">{{$c.Name}}</a>{{if lt $i (sub1 $n)}} / {{end}}
-      {{end}}
+  <div class="card-row">
+    <div class="card">
+      <div class="row">
+        <strong>Path:</strong>
+        {{ $n := lenCrumbs .Crumbs }}
+        {{range $i, $c := .Crumbs}}
+          <a href="{{$c.URL}}">{{$c.Name}}</a>{{if lt $i (sub1 $n)}} / {{end}}
+        {{end}}
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        {{if .UpPrefix}}
+	          <a class="btn" href="/bucket/view/{{.Bucket}}?prefix={{.UpPrefix}}">⬆ Up</a>
+        {{end}}
+
+        <form method="post" action="{{.DeleteBucketPOST}}" onsubmit="return confirm('Delete bucket {{.Bucket}}? Bucket must be EMPTY.');">
+          <input type="hidden" name="bucket" value="{{.Bucket}}" />
+          <button class="btn danger" type="submit">Delete bucket</button>
+        </form>
+      </div>
     </div>
 
-    <div class="row" style="margin-top:10px;">
-      {{if .UpPrefix}}
-	        <a class="btn" href="/bucket/view/{{.Bucket}}?prefix={{.UpPrefix}}">⬆ Up</a>
-      {{end}}
-
-      <form method="post" action="{{.DeleteBucketPOST}}" onsubmit="return confirm('Delete bucket {{.Bucket}}? Bucket must be EMPTY.');">
-        <input type="hidden" name="bucket" value="{{.Bucket}}" />
-        <button class="btn danger" type="submit">Delete bucket</button>
+    <div class="card">
+      <h4 style="margin-top:0;">Upload files</h4>
+      <form method="post" action="{{.UploadAction}}" enctype="multipart/form-data">
+        <div class="row">
+          <input type="file" name="file" multiple required />
+          <button class="btn" type="submit">Upload</button>
+        </div>
+        <p class="muted" style="margin-bottom:0;">Select one or more files. Each object key is the uploaded filename.</p>
       </form>
     </div>
-  </div>
-
-  <div class="card">
-    <h4 style="margin-top:0;">Upload files</h4>
-    <form method="post" action="{{.UploadAction}}" enctype="multipart/form-data">
-      <div class="row">
-        <input type="file" name="file" multiple required />
-        <button class="btn" type="submit">Upload</button>
-      </div>
-      <p class="muted" style="margin-bottom:0;">Select one or more files. Each object key is the uploaded filename.</p>
-    </form>
   </div>
 
   <div class="card">
