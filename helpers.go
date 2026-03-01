@@ -80,7 +80,7 @@ type crumb struct {
 }
 
 func breadcrumbs(bucket, prefix string) []crumb {
-	out := []crumb{{Name: bucket, URL: fmt.Sprintf("/bucket/%s?prefix=", url.PathEscape(bucket))}}
+	out := []crumb{{Name: bucket, URL: fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket))}}
 	if prefix == "" {
 		return out
 	}
@@ -90,7 +90,7 @@ func breadcrumbs(bucket, prefix string) []crumb {
 		cur += p + "/"
 		out = append(out, crumb{
 			Name: p,
-			URL:  fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(cur)),
+			URL:  fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(cur)),
 		})
 	}
 	return out
@@ -107,7 +107,7 @@ func bucketBrowseURL(bucket, prefix, token string, prevTokens []string) string {
 			q.Add("prev", t)
 		}
 	}
-	return fmt.Sprintf("/bucket/%s?%s", url.PathEscape(bucket), q.Encode())
+	return fmt.Sprintf("/bucket/view/%s?%s", url.PathEscape(bucket), q.Encode())
 }
 
 func sanitizeFilename(s string) string {

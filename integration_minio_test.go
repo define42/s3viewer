@@ -111,7 +111,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, uploadResp, http.StatusSeeOther)
 	discardAndClose(t, uploadResp)
 
-	browseURL := fmt.Sprintf("%s/bucket/%s?prefix=%s", srv.URL, url.PathEscape(bucket), url.QueryEscape("integration/"))
+	browseURL := fmt.Sprintf("%s/bucket/view/%s?prefix=%s", srv.URL, url.PathEscape(bucket), url.QueryEscape("integration/"))
 	browseResp, err := client.Get(browseURL)
 	if err != nil {
 		t.Fatalf("browse bucket request failed: %v", err)

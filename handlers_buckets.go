@@ -50,7 +50,7 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, bucketRow{
 			Name:         name,
 			CreationDate: cd,
-			BrowseURL:    fmt.Sprintf("/bucket/%s?prefix=", url.PathEscape(name)),
+			BrowseURL:    fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(name)),
 		})
 	}
 
@@ -89,14 +89,14 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 // ---------------- Bucket browse ----------------
 
-// /bucket/{bucket}?prefix=...&token=...&prev=...
+// /bucket/view/{bucket}?prefix=...&token=...&prev=...
 func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/bucket/")
+	p := strings.TrimPrefix(r.URL.Path, "/bucket/view/")
 	if p == "" || strings.Contains(p, "/") {
 		http.NotFound(w, r)
 		return
@@ -140,7 +140,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		pfx := aws.ToString(cp.Prefix)
 		folders = append(folders, prefixRow{
 			Name: strings.TrimSuffix(path.Base(pfx), "/") + "/",
-			URL:  fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(pfx)),
+			URL:  fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(pfx)),
 		})
 	}
 	sort.Slice(folders, func(i, j int) bool { return folders[i].Name < folders[j].Name })

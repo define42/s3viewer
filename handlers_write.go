@@ -51,7 +51,7 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +241,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +282,7 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parent := parentPrefix(key)
-	http.Redirect(w, r, fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {

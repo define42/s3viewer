@@ -132,7 +132,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 	sort.Slice(sys, func(i, j int) bool { return sys[i].K < sys[j].K })
 
 	parent := parentPrefix(key)
-	backURL := fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent))
+	backURL := fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent))
 
 	a.render(w, "object", map[string]any{
 		"Title":           "Object details",

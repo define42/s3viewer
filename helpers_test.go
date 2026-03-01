@@ -86,7 +86,7 @@ func TestBucketBrowseURL(t *testing.T) {
 	if url == "" {
 		t.Fatalf("expected non-empty URL")
 	}
-	if want := "/bucket/my-bucket?"; len(url) <= len(want) || url[:len(want)] != want {
+	if want := "/bucket/view/my-bucket?"; len(url) <= len(want) || url[:len(want)] != want {
 		t.Fatalf("unexpected browse url prefix: %s", url)
 	}
 	if want := "token=tok123"; !strings.Contains(url, want) {

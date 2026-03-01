@@ -206,7 +206,7 @@ const htmlTemplates = `
 
     <div class="row" style="margin-top:10px;">
       {{if .UpPrefix}}
-        <a class="btn" href="/bucket/{{.Bucket}}?prefix={{.UpPrefix}}">⬆ Up</a>
+	        <a class="btn" href="/bucket/view/{{.Bucket}}?prefix={{.UpPrefix}}">⬆ Up</a>
       {{end}}
 
       <form method="post" action="{{.DeleteBucketPOST}}" onsubmit="return confirm('Delete bucket {{.Bucket}}? Bucket must be EMPTY.');">

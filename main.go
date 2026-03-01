@@ -84,9 +84,9 @@ func newAppMux(a *app) http.Handler {
 	router.HandleFunc("/object/delete/{bucket}/{key}", a.handleDeleteObject)
 
 	// READ
-	router.HandleFunc("/", a.handleIndex)                           // list buckets + forms
-	router.PathPrefix("/bucket/").HandlerFunc(a.handleBucketBrowse) // browse bucket
-	router.PathPrefix("/object/").HandlerFunc(a.handleObject)       // object details (tags + metadata)
-	router.PathPrefix("/download/").HandlerFunc(a.handleDownload)   // download
+	router.HandleFunc("/", a.handleIndex)                                        // list buckets + forms
+	router.PathPrefix("/bucket/view/{bucket}").HandlerFunc(a.handleBucketBrowse) // browse bucket
+	router.PathPrefix("/object/").HandlerFunc(a.handleObject)                    // object details (tags + metadata)
+	router.PathPrefix("/download/").HandlerFunc(a.handleDownload)                // download
 	return router
 }
