@@ -299,7 +299,10 @@ func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
 	}
-	bucket := strings.TrimSpace(r.FormValue("bucket"))
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
 	if bucket == "" {
 		http.Error(w, "bucket required", http.StatusBadRequest)
 		return

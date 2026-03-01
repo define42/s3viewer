@@ -155,7 +155,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, deleteObjectResp, http.StatusSeeOther)
 	discardAndClose(t, deleteObjectResp)
 
-	deleteNonEmptyBucketResp := postForm(t, client, srv.URL+"/bucket/delete", url.Values{
+	deleteNonEmptyBucketResp := postForm(t, client, srv.URL+"/bucket/delete/"+url.PathEscape(bucket), url.Values{
 		"bucket": {bucket},
 	})
 	requireStatus(t, deleteNonEmptyBucketResp, http.StatusBadGateway)
@@ -168,7 +168,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, deleteObjectResp2, http.StatusSeeOther)
 	discardAndClose(t, deleteObjectResp2)
 
-	deleteBucketResp := postForm(t, client, srv.URL+"/bucket/delete", url.Values{
+	deleteBucketResp := postForm(t, client, srv.URL+"/bucket/delete/"+url.PathEscape(bucket), url.Values{
 		"bucket": {bucket},
 	})
 	requireStatus(t, deleteBucketResp, http.StatusSeeOther)
