@@ -6,21 +6,21 @@ import (
 )
 
 func TestLoadAWSConfigWithStaticCredentialsRequiresKeys(t *testing.T) {
-	_, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "", "", "", "", false)
+	_, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "", "", "", "", false, false)
 	if err == nil {
 		t.Fatalf("expected error when credentials are missing")
 	}
 }
 
 func TestLoadAWSConfigWithStaticCredentialsInvalidEndpoint(t *testing.T) {
-	_, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "::://bad-endpoint", "ak", "sk", "", false)
+	_, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "::://bad-endpoint", "ak", "sk", "", false, false)
 	if err == nil {
 		t.Fatalf("expected error for invalid endpoint")
 	}
 }
 
 func TestLoadAWSConfigWithStaticCredentialsSuccess(t *testing.T) {
-	cfg, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "http://localhost:9000", "ak", "sk", "", false)
+	cfg, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "http://localhost:9000", "ak", "sk", "", false, false)
 	if err != nil {
 		t.Fatalf("expected config load success, got error: %v", err)
 	}
@@ -32,8 +32,31 @@ func TestLoadAWSConfigWithStaticCredentialsSuccess(t *testing.T) {
 	}
 }
 
+func TestLoadAWSConfigWithStaticCredentialsUseRgwToken(t *testing.T) {
+	expectedToken, err := generateRGWToken("ak", "sk")
+	if err != nil {
+		t.Fatalf("expected generateRGWToken success, got error: %v", err)
+	}
+
+	cfg, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "http://localhost:9000", "ak", "sk", "", false, true)
+	if err != nil {
+		t.Fatalf("expected config load success with useRgwToken=true, got error: %v", err)
+	}
+
+	creds, err := cfg.Credentials.Retrieve(context.Background())
+	if err != nil {
+		t.Fatalf("expected credentials retrieval success, got error: %v", err)
+	}
+	if creds.AccessKeyID != expectedToken {
+		t.Fatalf("expected access key to be RGW token, got %q", creds.AccessKeyID)
+	}
+	if creds.SecretAccessKey != "sk" {
+		t.Fatalf("unexpected secret access key: %q", creds.SecretAccessKey)
+	}
+}
+
 func TestNewS3ClientRequiresKeys(t *testing.T) {
-	_, err := newS3Client(context.Background(), "us-east-1", "", true, "", "", "", false)
+	_, err := newS3Client(context.Background(), "us-east-1", "", true, "", "", "", false, false)
 	if err == nil {
 		t.Fatalf("expected error when creating client without credentials")
 	}

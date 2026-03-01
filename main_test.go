@@ -93,6 +93,55 @@ func TestBuildAppAndMuxFromEnvEndpointTLSSkip(t *testing.T) {
 	})
 }
 
+func TestBuildAppAndMuxFromEnvUseRgwToken(t *testing.T) {
+	t.Setenv("SECURECOOKIE_HASH_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("SECURECOOKIE_BLOCK_KEY", "abcdef0123456789abcdef0123456789")
+
+	t.Run("enable when USE_RWG_TOKEN=true", func(t *testing.T) {
+		t.Setenv("USE_RWG_TOKEN", "true")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if !a.useRgwToken {
+			t.Fatalf("expected useRgwToken=true when USE_RWG_TOKEN=true")
+		}
+	})
+
+	t.Run("enable with case and whitespace", func(t *testing.T) {
+		t.Setenv("USE_RWG_TOKEN", " TrUe ")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if !a.useRgwToken {
+			t.Fatalf("expected useRgwToken=true for case-insensitive trimmed true")
+		}
+	})
+
+	t.Run("disable when USE_RWG_TOKEN=false", func(t *testing.T) {
+		t.Setenv("USE_RWG_TOKEN", "false")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if a.useRgwToken {
+			t.Fatalf("expected useRgwToken=false when USE_RWG_TOKEN=false")
+		}
+	})
+
+	t.Run("disable when USE_RWG_TOKEN unset", func(t *testing.T) {
+		t.Setenv("USE_RWG_TOKEN", "")
+		a, _, _, err := buildAppAndMuxFromEnv()
+		if err != nil {
+			t.Fatalf("expected build success, got error: %v", err)
+		}
+		if a.useRgwToken {
+			t.Fatalf("expected useRgwToken=false when USE_RWG_TOKEN is unset")
+		}
+	})
+}
+
 func TestBuildAppAndMuxFromEnvInvalidSecureCookieConfig(t *testing.T) {
 	t.Setenv("SECURECOOKIE_HASH_KEY", "short")
 	t.Setenv("SECURECOOKIE_BLOCK_KEY", "1234567890123456")

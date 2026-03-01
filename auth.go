@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,35 +20,32 @@ const (
 	sessionTTL        = 24 * time.Hour
 )
 
-
-
 type userSession struct {
 	AccessKey string
 	SecretKey string
 }
 
 func generateRGWToken(username, password string) (string, error) {
-
-type RGWToken struct {
-	RGW_TOKEN struct {
-		Version int    `json:"version"`
-		Type    string `json:"type"` // "ad"
-		ID      string `json:"id"`   // username
-		Key     string `json:"key"`  // password
-	} `json:"RGW_TOKEN"`
+	type RGWToken struct {
+		RGW_TOKEN struct {
+			Version int    `json:"version"`
+			Type    string `json:"type"` // "ad"
+			ID      string `json:"id"`   // username
+			Key     string `json:"key"`  // password
+		} `json:"RGW_TOKEN"`
 	}
 
 	token := RGWToken{}
-		token.RGW_TOKEN.Version = 1
-		token.RGW_TOKEN.Type = "ad"
-		token.RGW_TOKEN.ID = username
-		token.RGW_TOKEN.Key = password
+	token.RGW_TOKEN.Version = 1
+	token.RGW_TOKEN.Type = "ad"
+	token.RGW_TOKEN.ID = username
+	token.RGW_TOKEN.Key = password
 
-		tokenJSON, err := json.Marshal(token)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal RGW token: %w", err)
-		}
-	return base64.StdEncoding.EncodeToString(tokenJSON), nil 
+	tokenJSON, err := json.Marshal(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal RGW token: %w", err)
+	}
+	return base64.StdEncoding.EncodeToString(tokenJSON), nil
 }
 
 func newSecureCookieFromEnv() (*securecookie.SecureCookie, error) {
@@ -164,7 +163,7 @@ func (a *app) authenticatedS3Client(w http.ResponseWriter, r *http.Request) (*s3
 		return nil, false
 	}
 
-	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, sess.AccessKey, sess.SecretKey, "", a.endpointSkipTls)
+	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, sess.AccessKey, sess.SecretKey, "", a.endpointSkipTls, a.useRgwToken)
 	if err != nil {
 		a.renderError(w, "Could not initialize S3 client", err, http.StatusInternalServerError)
 		return nil, false
@@ -198,14 +197,14 @@ func (a *app) handleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		accessKey := strings.TrimSpace(r.FormValue("access_key"))
+		var accessKey = strings.TrimSpace(r.FormValue("access_key"))
 		secretKey := strings.TrimSpace(r.FormValue("secret_key"))
 		if accessKey == "" || secretKey == "" {
 			a.renderLogin(w, accessKey, "access key and secret key are required")
 			return
 		}
 
-		client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, accessKey, secretKey, "", a.endpointSkipTls)
+		client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, accessKey, secretKey, "", a.endpointSkipTls, a.useRgwToken)
 		if err != nil {
 			a.renderLogin(w, accessKey, "failed to create S3 client")
 			return

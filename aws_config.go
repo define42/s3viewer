@@ -15,9 +15,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, accessKey, secretKey, sessionToken string, endpointSkipTls bool) (aws.Config, error) {
+func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, accessKey, secretKey, sessionToken string, endpointSkipTls bool, useRgwToken bool) (aws.Config, error) {
 	if strings.TrimSpace(accessKey) == "" || strings.TrimSpace(secretKey) == "" {
 		return aws.Config{}, fmt.Errorf("access key and secret key are required")
+	}
+
+	if useRgwToken {
+		var err error
+		accessKey, err = generateRGWToken(accessKey, secretKey)
+		if err != nil {
+			return aws.Config{}, fmt.Errorf("generateRGWToken failed: %w", err)
+		}
 	}
 
 	var optFns []func(*config.LoadOptions) error
@@ -52,8 +60,9 @@ func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, a
 
 	return awsCfg, nil
 }
-func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bool, accessKey, secretKey, sessionToken string, endpointSkipTls bool) (*s3.Client, error) {
-	cfg, err := loadAWSConfigWithStaticCredentials(ctx, region, endpoint, accessKey, secretKey, sessionToken, endpointSkipTls)
+func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bool, accessKey, secretKey, sessionToken string, endpointSkipTls bool, useRgwToken bool) (*s3.Client, error) {
+
+	cfg, err := loadAWSConfigWithStaticCredentials(ctx, region, endpoint, accessKey, secretKey, sessionToken, endpointSkipTls, useRgwToken)
 	if err != nil {
 		return nil, err
 	}

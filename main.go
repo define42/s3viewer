@@ -20,6 +20,7 @@ type app struct {
 	cookieName      string
 	cookie          *securecookie.SecureCookie
 	endpointSkipTls bool
+	useRgwToken     bool
 }
 
 func main() {
@@ -54,6 +55,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
 	endpointSkipTls := strings.EqualFold(strings.TrimSpace(getenv("S3_ENDPOINT_TLSSKIP", "")), "true")
 	forcePathStyle := strings.EqualFold(strings.TrimSpace(getenv("S3_FORCE_PATH_STYLE", "")), "true")
+	useRgwToken := strings.EqualFold(strings.TrimSpace(getenv("USE_RWG_TOKEN", "")), "true")
 
 	sc, err := newSecureCookieFromEnv()
 	if err != nil {
@@ -68,6 +70,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 		cookieName:      sessionCookieName,
 		cookie:          sc,
 		endpointSkipTls: endpointSkipTls,
+		useRgwToken:     useRgwToken,
 	}
 
 	return a, newAppMux(a), listen, nil

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -56,6 +58,47 @@ func TestRandomKey(t *testing.T) {
 	}
 	if len(key) != 32 {
 		t.Fatalf("expected 32-byte key, got %d", len(key))
+	}
+}
+
+func TestGenerateRGWToken(t *testing.T) {
+	token, err := generateRGWToken("user1", "pass1")
+	if err != nil {
+		t.Fatalf("generateRGWToken returned error: %v", err)
+	}
+	if strings.TrimSpace(token) == "" {
+		t.Fatalf("expected non-empty token")
+	}
+
+	raw, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		t.Fatalf("token is not valid base64: %v", err)
+	}
+
+	var payload struct {
+		RGWToken struct {
+			Version int    `json:"version"`
+			Type    string `json:"type"`
+			ID      string `json:"id"`
+			Key     string `json:"key"`
+		} `json:"RGW_TOKEN"`
+	}
+
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("token payload is not valid JSON: %v", err)
+	}
+
+	if payload.RGWToken.Version != 1 {
+		t.Fatalf("expected version=1, got %d", payload.RGWToken.Version)
+	}
+	if payload.RGWToken.Type != "ad" {
+		t.Fatalf("expected type=ad, got %q", payload.RGWToken.Type)
+	}
+	if payload.RGWToken.ID != "user1" {
+		t.Fatalf("expected id=user1, got %q", payload.RGWToken.ID)
+	}
+	if payload.RGWToken.Key != "pass1" {
+		t.Fatalf("expected key=pass1, got %q", payload.RGWToken.Key)
 	}
 }
 

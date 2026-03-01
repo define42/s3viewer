@@ -63,6 +63,7 @@ Then open `http://localhost:8080` and login with your S3 credentials.
 - `AWS_ENDPOINT_URL` or `S3_ENDPOINT` (optional, for S3-compatible endpoints like MinIO)
 - `S3_FORCE_PATH_STYLE` (`true` for many S3-compatible providers)
 - `S3_ENDPOINT_TLSSKIP` (`true` to skip TLS certificate verification; only use with trusted private endpoints)
+- `USE_RWG_TOKEN` (`true` to convert login credentials to an RGW auth token for the AWS Access Key field)
 
 ### Session cookie keys
 
@@ -74,6 +75,7 @@ If cookie keys are not provided, the app generates ephemeral keys at startup (al
 ## Notes on credentials
 
 - The UI login credentials are used for all S3 operations.
+- When `USE_RWG_TOKEN=true`, the app generates a base64-encoded `RGW_TOKEN` payload from `AccessKey` + `SecretKey` and uses that token as the AWS Access Key.
 - Environment variables like `S3_ACCESS_KEY`/`S3_SECRET_KEY` are not required for app auth flow.
 
 ## Testing
