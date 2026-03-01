@@ -101,7 +101,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, gotoResp, http.StatusSeeOther)
 	discardAndClose(t, gotoResp)
 
-	uploadResp := postMultipartUpload(t, client, srv.URL+"/upload", map[string]string{
+	uploadResp := postMultipartUpload(t, client, srv.URL+"/object/upload/"+url.PathEscape(bucket), map[string]string{
 		"bucket": bucket,
 		"prefix": "integration/",
 	}, []testUploadFile{
@@ -204,7 +204,7 @@ func newIntegrationTestApp(endpoint string) *app {
 	}
 }
 
-func newIntegrationTestMux(a *app) *http.ServeMux {
+func newIntegrationTestMux(a *app) http.Handler {
 	return newAppMux(a)
 }
 

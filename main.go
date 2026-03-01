@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 )
 
@@ -46,7 +47,7 @@ func runServer() error {
 	return startHTTPServer(srv)
 }
 
-func buildAppAndMuxFromEnv() (*app, *http.ServeMux, string, error) {
+func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
@@ -69,22 +70,22 @@ func buildAppAndMuxFromEnv() (*app, *http.ServeMux, string, error) {
 	return a, newAppMux(a), listen, nil
 }
 
-func newAppMux(a *app) *http.ServeMux {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/login", a.handleLogin)
-	mux.HandleFunc("/logout", a.handleLogout)
-
-	// READ
-	mux.HandleFunc("/", a.handleIndex)               // list buckets + forms
-	mux.HandleFunc("/bucket/", a.handleBucketBrowse) // browse bucket
-	mux.HandleFunc("/object/", a.handleObject)       // object details (tags + metadata)
-	mux.HandleFunc("/download/", a.handleDownload)   // download
+func newAppMux(a *app) http.Handler {
+	router := mux.NewRouter()
+	router.HandleFunc("/login", a.handleLogin)
+	router.HandleFunc("/logout", a.handleLogout)
 
 	// WRITE (POST)
-	mux.HandleFunc("/bucket/goto", a.handleGoToBucket)
-	mux.HandleFunc("/bucket/create", a.handleCreateBucket)
-	mux.HandleFunc("/bucket/delete", a.handleDeleteBucket)
-	mux.HandleFunc("/upload", a.handleUpload)
-	mux.HandleFunc("/object/delete", a.handleDeleteObject)
-	return mux
+	router.HandleFunc("/bucket/goto", a.handleGoToBucket)
+	router.HandleFunc("/bucket/create", a.handleCreateBucket)
+	router.HandleFunc("/bucket/delete", a.handleDeleteBucket)
+	router.HandleFunc("/object/upload/{bucket}", a.handleUpload)
+	router.HandleFunc("/object/delete", a.handleDeleteObject)
+
+	// READ
+	router.HandleFunc("/", a.handleIndex)                           // list buckets + forms
+	router.PathPrefix("/bucket/").HandlerFunc(a.handleBucketBrowse) // browse bucket
+	router.PathPrefix("/object/").HandlerFunc(a.handleObject)       // object details (tags + metadata)
+	router.PathPrefix("/download/").HandlerFunc(a.handleDownload)   // download
+	return router
 }

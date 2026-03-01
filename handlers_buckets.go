@@ -239,7 +239,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"HasNext":     hasNext,
 		"NextPageURL": nextPageURL,
 
-		"UploadAction":     "/upload",
+		"UploadAction":     fmt.Sprintf("/object/upload/%s", url.PathEscape(bucket)),
 		"DeleteBucketPOST": "/bucket/delete",
 	})
 }

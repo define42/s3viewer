@@ -222,8 +222,8 @@ const htmlTemplates = `
       <input type="hidden" name="bucket" value="{{.Bucket}}" />
       <input type="hidden" name="prefix" value="{{.Prefix}}" />
       <div class="row">
-        <input type="file" name="file" multiple required />
         <input type="text" name="key" placeholder="optional: override key (single file only)" />
+        <input type="file" name="file" multiple required />
         <button class="btn" type="submit">Upload</button>
       </div>
       <p class="muted" style="margin-bottom:0;">Select one or more files. Uploads into current prefix unless you override key.</p>
