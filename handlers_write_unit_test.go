@@ -72,6 +72,9 @@ func TestWriteHandlerFieldValidation(t *testing.T) {
 		{name: "delete object missing key", handler: a.handleDeleteObject, path: "/object/delete", body: "bucket=test", wantStatus: http.StatusBadRequest},
 		{name: "delete bucket missing bucket", handler: a.handleDeleteBucket, path: "/bucket/delete", body: "", wantStatus: http.StatusBadRequest},
 		{name: "goto bucket missing bucket", handler: a.handleGoToBucket, path: "/bucket/goto", body: "", wantStatus: http.StatusBadRequest},
+		{name: "rename object missing new_key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&key=old.txt", wantStatus: http.StatusBadRequest},
+		{name: "rename object missing key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&new_key=new.txt", wantStatus: http.StatusBadRequest},
+		{name: "rename object same key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&key=same.txt&new_key=same.txt", wantStatus: http.StatusBadRequest},
 	}
 
 	for _, tc := range tests {

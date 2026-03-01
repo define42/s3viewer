@@ -176,6 +176,67 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
 }
 
+func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+		return
+	}
+	vars := mux.Vars(r)
+	bucket := strings.TrimSpace(vars["bucket"])
+	key := vars["key"]
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if formKey := r.FormValue("key"); formKey != "" {
+		key = formKey
+	}
+	newKey := strings.TrimSpace(r.FormValue("new_key"))
+	if bucket == "" || key == "" {
+		http.Error(w, "bucket and key required", http.StatusBadRequest)
+		return
+	}
+	if newKey == "" {
+		http.Error(w, "new_key required", http.StatusBadRequest)
+		return
+	}
+	if newKey == key {
+		http.Error(w, "new_key must differ from key", http.StatusBadRequest)
+		return
+	}
+
+	copySource := url.PathEscape(bucket) + "/" + url.PathEscape(key)
+	_, err := s3Client.CopyObject(r.Context(), &s3.CopyObjectInput{
+		Bucket:     aws.String(bucket),
+		CopySource: aws.String(copySource),
+		Key:        aws.String(newKey),
+	})
+	if err != nil {
+		a.renderError(w, "CopyObject failed", err, http.StatusBadGateway)
+		return
+	}
+
+	_, err = s3Client.DeleteObject(r.Context(), &s3.DeleteObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		a.renderError(w, "DeleteObject failed after copy", err, http.StatusBadGateway)
+		return
+	}
+
+	parent := parentPrefix(newKey)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
+}
+
 func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
