@@ -19,8 +19,13 @@ func TestBuildAppAndMuxFromEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected build success, got error: %v", err)
 	}
-	if a == nil || mux == nil {
-		t.Fatalf("expected non-nil app and mux")
+	if a == nil {
+		t.Fatalf("expected non-nil app")
+		return
+	}
+	if mux == nil {
+		t.Fatalf("expected non-nil mux")
+		return
 	}
 	if listen != ":9999" {
 		t.Fatalf("unexpected listen address: %q", listen)

@@ -107,9 +107,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 	addSys("Content-Language", aws.ToString(head.ContentLanguage))
 	addSys("Website-Redirect-Location", aws.ToString(head.WebsiteRedirectLocation))
 
-	if head.Expires != nil {
-		addSys("Expires", head.Expires.Format(time.RFC3339))
-	}
+	addSys("Expires", aws.ToString(head.ExpiresString))
 	if head.VersionId != nil {
 		addSys("VersionId", aws.ToString(head.VersionId))
 	}
