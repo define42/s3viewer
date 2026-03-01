@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -20,6 +21,32 @@ type app struct {
 }
 
 func main() {
+	if err := runServer(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+var startHTTPServer = func(srv *http.Server) error {
+	return srv.ListenAndServe()
+}
+
+func runServer() error {
+	a, mux, listen, err := buildAppAndMuxFromEnv()
+	if err != nil {
+		return fmt.Errorf("startup failed: %w", err)
+	}
+
+	srv := &http.Server{
+		Addr:              listen,
+		Handler:           logRequests(mux),
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+
+	log.Printf("S3 Viewer running on http://localhost%s (region=%s)", listen, a.region)
+	return startHTTPServer(srv)
+}
+
+func buildAppAndMuxFromEnv() (*app, *http.ServeMux, string, error) {
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
@@ -27,7 +54,7 @@ func main() {
 
 	sc, err := newSecureCookieFromEnv()
 	if err != nil {
-		log.Fatalf("securecookie config: %v", err)
+		return nil, nil, "", fmt.Errorf("securecookie config: %w", err)
 	}
 
 	a := &app{
@@ -39,6 +66,10 @@ func main() {
 		cookie:         sc,
 	}
 
+	return a, newAppMux(a), listen, nil
+}
+
+func newAppMux(a *app) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/login", a.handleLogin)
 	mux.HandleFunc("/logout", a.handleLogout)
@@ -55,13 +86,5 @@ func main() {
 	mux.HandleFunc("/bucket/delete", a.handleDeleteBucket)
 	mux.HandleFunc("/upload", a.handleUpload)
 	mux.HandleFunc("/object/delete", a.handleDeleteObject)
-
-	srv := &http.Server{
-		Addr:              listen,
-		Handler:           logRequests(mux),
-		ReadHeaderTimeout: 10 * time.Second,
-	}
-
-	log.Printf("S3 Viewer running on http://localhost%s (region=%s)", listen, region)
-	log.Fatal(srv.ListenAndServe())
+	return mux
 }

@@ -85,6 +85,22 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, createResp, http.StatusSeeOther)
 	discardAndClose(t, createResp)
 
+	indexResp, err := client.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatalf("index request failed: %v", err)
+	}
+	requireStatus(t, indexResp, http.StatusOK)
+	indexBody := readBody(t, indexResp)
+	if !strings.Contains(indexBody, bucket) {
+		t.Fatalf("expected bucket %q to appear in index page", bucket)
+	}
+
+	gotoResp := postForm(t, client, srv.URL+"/bucket/goto", url.Values{
+		"bucket": {bucket},
+	})
+	requireStatus(t, gotoResp, http.StatusSeeOther)
+	discardAndClose(t, gotoResp)
+
 	uploadResp := postMultipartUpload(t, client, srv.URL+"/upload", map[string]string{
 		"bucket": bucket,
 		"prefix": "integration/",
@@ -109,6 +125,67 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	if !strings.Contains(browseBody, "integration/b.txt") {
 		t.Fatalf("expected uploaded object key integration/b.txt in bucket page")
 	}
+
+	objectURL := fmt.Sprintf("%s/object/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	objectResp, err := client.Get(objectURL)
+	if err != nil {
+		t.Fatalf("object details request failed: %v", err)
+	}
+	requireStatus(t, objectResp, http.StatusOK)
+	objectBody := readBody(t, objectResp)
+	if !strings.Contains(objectBody, "integration/a.txt") {
+		t.Fatalf("expected object details page to include key integration/a.txt")
+	}
+
+	downloadURL := fmt.Sprintf("%s/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	downloadResp, err := client.Get(downloadURL)
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	requireStatus(t, downloadResp, http.StatusOK)
+	downloadBody := readBody(t, downloadResp)
+	if !strings.Contains(downloadBody, "alpha") {
+		t.Fatalf("expected downloaded object body to contain uploaded content")
+	}
+
+	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete", url.Values{
+		"bucket": {bucket},
+		"key":    {"integration/a.txt"},
+	})
+	requireStatus(t, deleteObjectResp, http.StatusSeeOther)
+	discardAndClose(t, deleteObjectResp)
+
+	deleteNonEmptyBucketResp := postForm(t, client, srv.URL+"/bucket/delete", url.Values{
+		"bucket": {bucket},
+	})
+	requireStatus(t, deleteNonEmptyBucketResp, http.StatusBadGateway)
+	discardAndClose(t, deleteNonEmptyBucketResp)
+
+	deleteObjectResp2 := postForm(t, client, srv.URL+"/object/delete", url.Values{
+		"bucket": {bucket},
+		"key":    {"integration/b.txt"},
+	})
+	requireStatus(t, deleteObjectResp2, http.StatusSeeOther)
+	discardAndClose(t, deleteObjectResp2)
+
+	deleteBucketResp := postForm(t, client, srv.URL+"/bucket/delete", url.Values{
+		"bucket": {bucket},
+	})
+	requireStatus(t, deleteBucketResp, http.StatusSeeOther)
+	discardAndClose(t, deleteBucketResp)
+
+	logoutResp := postForm(t, client, srv.URL+"/logout", url.Values{})
+	requireStatus(t, logoutResp, http.StatusSeeOther)
+	requireLocation(t, logoutResp, "/login")
+	discardAndClose(t, logoutResp)
+
+	afterLogoutResp, err := client.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatalf("post-logout root request failed: %v", err)
+	}
+	requireStatus(t, afterLogoutResp, http.StatusSeeOther)
+	requireLocation(t, afterLogoutResp, "/login")
+	discardAndClose(t, afterLogoutResp)
 }
 
 func newIntegrationTestApp(endpoint string) *app {
@@ -128,25 +205,7 @@ func newIntegrationTestApp(endpoint string) *app {
 }
 
 func newIntegrationTestMux(a *app) *http.ServeMux {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/login", a.handleLogin)
-	mux.HandleFunc("/logout", a.handleLogout)
-
-	// READ
-	mux.HandleFunc("/", a.handleIndex)
-	mux.HandleFunc("/bucket/", a.handleBucketBrowse)
-	mux.HandleFunc("/object/", a.handleObject)
-	mux.HandleFunc("/download/", a.handleDownload)
-
-	// WRITE (POST)
-	mux.HandleFunc("/bucket/goto", a.handleGoToBucket)
-	mux.HandleFunc("/bucket/create", a.handleCreateBucket)
-	mux.HandleFunc("/bucket/delete", a.handleDeleteBucket)
-	mux.HandleFunc("/upload", a.handleUpload)
-	mux.HandleFunc("/object/delete", a.handleDeleteObject)
-
-	return mux
+	return newAppMux(a)
 }
 
 type testUploadFile struct {
