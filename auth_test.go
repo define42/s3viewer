@@ -160,8 +160,9 @@ func TestHandleLoginGETRendersForm(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
-	if !strings.Contains(rec.Body.String(), "Access Key") {
-		t.Fatalf("expected login form in response")
+	body := rec.Body.String()
+	if !strings.Contains(body, `name="access_key"`) || !strings.Contains(body, `name="secret_key"`) {
+		t.Fatalf("expected login form fields in response")
 	}
 }
 

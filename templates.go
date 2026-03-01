@@ -19,7 +19,13 @@ func newTemplates() *template.Template {
 			}
 			return 0
 		},
-		"hasErr": func(s string) bool { return strings.TrimSpace(s) != "" },
+		"hasErr": func(v any) bool {
+			s, ok := v.(string)
+			if !ok {
+				return false
+			}
+			return strings.TrimSpace(s) != ""
+		},
 	}
 	return template.Must(template.New("base").Funcs(funcs).Parse(htmlTemplates))
 }
