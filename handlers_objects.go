@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/gorilla/mux"
 )
 
 // ---------------- Object details (tags + metadata) ----------------
@@ -54,9 +55,20 @@ func tagsToKVs(tags []types.Tag) []kv {
 
 // /object/view/{bucket}/{key...}
 func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/object/view/")
-	parts := strings.SplitN(p, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	vars := mux.Vars(r)
+	bucketEscaped, keyEscaped := vars["bucket"], vars["key"]
+	if bucketEscaped == "" || keyEscaped == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	bucket, err := url.PathUnescape(bucketEscaped)
+	if err != nil || bucket == "" {
+		http.NotFound(w, r)
+		return
+	}
+	key, err := url.PathUnescape(keyEscaped)
+	if err != nil || key == "" {
 		http.NotFound(w, r)
 		return
 	}
@@ -64,7 +76,6 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	bucket, key := parts[0], parts[1]
 
 	head, err := s3Client.HeadObject(r.Context(), &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
@@ -160,9 +171,20 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 // ---------------- Download ----------------
 
 func (a *app) handleDownload(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/object/download/")
-	parts := strings.SplitN(p, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+	vars := mux.Vars(r)
+	bucketEscaped, keyEscaped := vars["bucket"], vars["key"]
+	if bucketEscaped == "" || keyEscaped == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	bucket, err := url.PathUnescape(bucketEscaped)
+	if err != nil || bucket == "" {
+		http.NotFound(w, r)
+		return
+	}
+	key, err := url.PathUnescape(keyEscaped)
+	if err != nil || key == "" {
 		http.NotFound(w, r)
 		return
 	}
@@ -170,7 +192,6 @@ func (a *app) handleDownload(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	bucket, key := parts[0], parts[1]
 	out, err := s3Client.GetObject(r.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),

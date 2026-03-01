@@ -88,9 +88,9 @@ func newAppMux(a *app) http.Handler {
 	router.HandleFunc("/object/rename/{bucket}/{key:.+}", a.handleRenameObject)
 
 	// READ
-	router.HandleFunc("/", a.handleIndex)                                              // list buckets + forms
-	router.PathPrefix("/bucket/view/{bucket}").HandlerFunc(a.handleBucketBrowse)       // browse bucket
-	router.PathPrefix("/object/view/{bucket}/{key}").HandlerFunc(a.handleObject)       // object details (tags + metadata)
-	router.PathPrefix("/object/download/{bucket}/{key}").HandlerFunc(a.handleDownload) // download
+	router.HandleFunc("/", a.handleIndex)                                                 // list buckets + forms
+	router.PathPrefix("/bucket/view/{bucket}").HandlerFunc(a.handleBucketBrowse)          // browse bucket
+	router.PathPrefix("/object/view/{bucket}/{key:.+}").HandlerFunc(a.handleObject)       // object details (tags + metadata)
+	router.PathPrefix("/object/download/{bucket}/{key:.+}").HandlerFunc(a.handleDownload) // download
 	return router
 }
