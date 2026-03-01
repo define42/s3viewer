@@ -101,7 +101,7 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 
 // ---------------- Bucket browse ----------------
 
-// /bucket/view/{bucket}?prefix=...&token=...&prev=...
+// /bucket/view/{bucket}?prefix=...&search=...&token=...&prev=...
 func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, "/bucket/view/")
 	if p == "" || strings.Contains(p, "/") {
@@ -115,6 +115,8 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	bucket := p
 
 	prefix := r.URL.Query().Get("prefix")
+	search := r.URL.Query().Get("search")
+	listPrefix := prefix + search
 	token := r.URL.Query().Get("token")
 	prevTokens := append([]string(nil), r.URL.Query()["prev"]...)
 
@@ -132,7 +134,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
-		Prefix:            aws.String(prefix),
+		Prefix:            aws.String(listPrefix),
 		Delimiter:         aws.String("/"),
 		MaxKeys:           aws.Int32(bucketPageSize),
 		ContinuationToken: optionalString(token),
@@ -145,21 +147,24 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	type prefixRow struct{ Name, URL string }
 	type objRow struct {
 		Key, Size, LastModified, ETag, DetailsURL, DownloadURL, DeleteURL string
-		Metadata                                                           []kv
-		Tags                                                               []kv
-		MetadataError                                                      string
-		TagError                                                           string
+		Metadata                                                          []kv
+		Tags                                                              []kv
+		MetadataError                                                     string
+		TagError                                                          string
 	}
 
 	crumbs := breadcrumbs(bucket, prefix)
 	upPrefix := parentPrefix(prefix)
+	browseAction := fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket))
+	clearSearchURL := bucketBrowseURL(bucket, prefix, "", "", nil)
+	upURL := bucketBrowseURL(bucket, upPrefix, "", "", nil)
 
 	folders := make([]prefixRow, 0, len(out.CommonPrefixes))
 	for _, cp := range out.CommonPrefixes {
 		pfx := aws.ToString(cp.Prefix)
 		folders = append(folders, prefixRow{
 			Name: strings.TrimSuffix(path.Base(pfx), "/") + "/",
-			URL:  fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(pfx)),
+			URL:  bucketBrowseURL(bucket, pfx, "", "", nil),
 		})
 	}
 	sort.Slice(folders, func(i, j int) bool { return folders[i].Name < folders[j].Name })
@@ -169,7 +174,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		key := aws.ToString(o.Key)
 
 		// skip directory marker object that equals the prefix and ends with '/'
-		if key == prefix && strings.HasSuffix(key, "/") {
+		if key == listPrefix && strings.HasSuffix(key, "/") {
 			continue
 		}
 
@@ -230,7 +235,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			prevToken = prevTokens[len(prevTokens)-1]
 			prevHistory = prevTokens[:len(prevTokens)-1]
 		}
-		prevPageURL = bucketBrowseURL(bucket, prefix, prevToken, prevHistory)
+		prevPageURL = bucketBrowseURL(bucket, prefix, search, prevToken, prevHistory)
 	}
 
 	hasNext := nextToken != ""
@@ -240,17 +245,21 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		if token != "" {
 			nextHistory = append(nextHistory, token)
 		}
-		nextPageURL = bucketBrowseURL(bucket, prefix, nextToken, nextHistory)
+		nextPageURL = bucketBrowseURL(bucket, prefix, search, nextToken, nextHistory)
 	}
 
 	a.render(w, "bucket", map[string]any{
 		"Title":           "Browse bucket",
 		"Bucket":          bucket,
 		"Prefix":          prefix,
+		"Search":          search,
+		"BrowseAction":    browseAction,
+		"ClearSearchURL":  clearSearchURL,
 		"Crumbs":          crumbs,
 		"BucketTags":      bucketTags,
 		"BucketTagError":  bucketTagError,
 		"UpPrefix":        upPrefix,
+		"UpURL":           upURL,
 		"IsAuthenticated": true,
 
 		"Folders": folders,

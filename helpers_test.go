@@ -82,7 +82,7 @@ func TestBreadcrumbs(t *testing.T) {
 }
 
 func TestBucketBrowseURL(t *testing.T) {
-	url := bucketBrowseURL("my-bucket", "a/", "tok123", []string{"p1", "p2"})
+	url := bucketBrowseURL("my-bucket", "a/", "who", "tok123", []string{"p1", "p2"})
 	if url == "" {
 		t.Fatalf("expected non-empty URL")
 	}
@@ -90,6 +90,9 @@ func TestBucketBrowseURL(t *testing.T) {
 		t.Fatalf("unexpected browse url prefix: %s", url)
 	}
 	if want := "token=tok123"; !strings.Contains(url, want) {
+		t.Fatalf("expected %q in url %q", want, url)
+	}
+	if want := "search=who"; !strings.Contains(url, want) {
 		t.Fatalf("expected %q in url %q", want, url)
 	}
 	if want := "prev=p1"; !strings.Contains(url, want) {

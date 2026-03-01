@@ -96,9 +96,12 @@ func breadcrumbs(bucket, prefix string) []crumb {
 	return out
 }
 
-func bucketBrowseURL(bucket, prefix, token string, prevTokens []string) string {
+func bucketBrowseURL(bucket, prefix, search, token string, prevTokens []string) string {
 	q := url.Values{}
 	q.Set("prefix", prefix)
+	if strings.TrimSpace(search) != "" {
+		q.Set("search", search)
+	}
 	if strings.TrimSpace(token) != "" {
 		q.Set("token", token)
 	}

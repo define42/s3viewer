@@ -197,6 +197,7 @@ const htmlTemplates = `
   <div class="row">
     <h3 style="margin:0;">Bucket: <code>{{.Bucket}}</code></h3>
     {{if .Prefix}}<span class="muted">Prefix: <code>{{.Prefix}}</code></span>{{end}}
+    {{if .Search}}<span class="muted">Search: <code>{{.Search}}</code></span>{{end}}
   </div>
 
   <div class="card-row">
@@ -209,9 +210,19 @@ const htmlTemplates = `
         {{end}}
       </div>
 
-      <div class="row" style="margin-top:10px;">
+      <form method="get" action="{{.BrowseAction}}" class="row" style="margin-top:10px;">
+        <strong>Prefix search:</strong>
+        <input type="hidden" name="prefix" value="{{.Prefix}}" />
+        <input type="text" name="search" value="{{.Search}}" placeholder="starts-with key prefix" />
+        <button class="btn" type="submit">Search</button>
+        {{if .Search}}
+          <a class="btn" href="{{.ClearSearchURL}}">Clear</a>
+        {{end}}
+      </form>
+
+      <div class="row" style="margin-top:12px;">
         {{if .UpPrefix}}
-	          <a class="btn" href="/bucket/view/{{.Bucket}}?prefix={{.UpPrefix}}">⬆ Up</a>
+          <a class="btn" href="{{.UpURL}}">⬆ Up</a>
         {{end}}
 
         <form method="post" action="{{.DeleteBucketPOST}}" onsubmit="return confirm('Delete bucket {{.Bucket}}? Bucket must be EMPTY.');">

@@ -9,6 +9,7 @@ Simple web UI for S3-compatible object storage (AWS S3, MinIO, etc.).
 - Login with `AccessKey` + `SecretKey` (session cookie via `gorilla/securecookie`)
 - List buckets
 - Browse objects with pagination (10 items per page, `Prev`/`Next`)
+- Filter objects by key prefix (`starts-with`) in bucket browse
 - Show object metadata and tags in bucket view
 - View object details (metadata + tags)
 - Download objects
