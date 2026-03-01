@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/gorilla/mux"
@@ -77,6 +77,8 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	var uploadFileNames []string
 
+	uploader := manager.NewUploader(s3Client)
+
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -100,27 +102,16 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		uploadFileNames = append(uploadFileNames, filename)
 
-		var buf bytes.Buffer
 		contentType := part.Header.Get("Content-Type")
-		_, copyErr := io.Copy(&buf, part)
-		closePartErr := part.Close()
-		if copyErr != nil {
-			a.renderError(w, "failed to read uploaded file", copyErr, http.StatusBadRequest)
-			return
-		}
-		if closePartErr != nil {
-			a.renderError(w, "failed to close uploaded file stream", closePartErr, http.StatusBadRequest)
-			return
-		}
-
-		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
+		_, uploadErr := uploader.Upload(r.Context(), &s3.PutObjectInput{
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(prefix + filename),
-			Body:        bytes.NewReader(buf.Bytes()),
+			Body:        part,
 			ContentType: optionalString(contentType),
 		})
-		if err != nil {
-			a.renderError(w, "Upload failed", err, http.StatusBadGateway)
+		_ = part.Close()
+		if uploadErr != nil {
+			a.renderError(w, "Upload failed", uploadErr, http.StatusBadGateway)
 			return
 		}
 		uploadedCount++
