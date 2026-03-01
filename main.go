@@ -526,36 +526,55 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, hdr, err := r.FormFile("file")
-	if err != nil {
-		a.renderError(w, "file is required", err, http.StatusBadRequest)
+	files := r.MultipartForm.File["file"]
+	if len(files) == 0 {
+		http.Error(w, "at least one file is required", http.StatusBadRequest)
 		return
 	}
-	defer f.Close()
 
-	key := strings.TrimPrefix(prefix, "/")
-	if key != "" && !strings.HasSuffix(key, "/") {
-		key += "/"
+	if overrideKey != "" && len(files) > 1 {
+		http.Error(w, "key override only supports a single uploaded file", http.StatusBadRequest)
+		return
 	}
-	if overrideKey != "" {
-		key += strings.TrimPrefix(overrideKey, "/")
-	} else {
-		key += hdr.Filename
-	}
-	key = strings.TrimPrefix(key, "/")
 
-	contentType := hdr.Header.Get("Content-Type")
+	keyPrefix := strings.TrimPrefix(prefix, "/")
+	if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
+		keyPrefix += "/"
+	}
 
 	ctx := r.Context()
-	_, err = a.s3.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      aws.String(bucket),
-		Key:         aws.String(key),
-		Body:        f,
-		ContentType: optionalString(contentType),
-	})
-	if err != nil {
-		a.renderError(w, "PutObject failed", err, http.StatusBadGateway)
-		return
+	for _, hdr := range files {
+		f, err := hdr.Open()
+		if err != nil {
+			a.renderError(w, "failed to open uploaded file", err, http.StatusBadRequest)
+			return
+		}
+
+		key := keyPrefix
+		if overrideKey != "" {
+			key += strings.TrimPrefix(overrideKey, "/")
+		} else {
+			key += strings.TrimPrefix(hdr.Filename, "/")
+		}
+		key = strings.TrimPrefix(key, "/")
+
+		contentType := hdr.Header.Get("Content-Type")
+
+		_, err = a.s3.PutObject(ctx, &s3.PutObjectInput{
+			Bucket:      aws.String(bucket),
+			Key:         aws.String(key),
+			Body:        f,
+			ContentType: optionalString(contentType),
+		})
+		closeErr := f.Close()
+		if err != nil {
+			a.renderError(w, "PutObject failed", err, http.StatusBadGateway)
+			return
+		}
+		if closeErr != nil {
+			a.renderError(w, "failed to close uploaded file", closeErr, http.StatusBadRequest)
+			return
+		}
 	}
 
 	http.Redirect(w, r, fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
@@ -861,16 +880,16 @@ const htmlTemplates = `
   </div>
 
   <div class="card">
-    <h4 style="margin-top:0;">Upload file</h4>
+    <h4 style="margin-top:0;">Upload files</h4>
     <form method="post" action="{{.UploadAction}}" enctype="multipart/form-data">
       <input type="hidden" name="bucket" value="{{.Bucket}}" />
       <input type="hidden" name="prefix" value="{{.Prefix}}" />
       <div class="row">
-        <input type="file" name="file" required />
-        <input type="text" name="key" placeholder="optional: override key (e.g. docs/readme.txt)" />
+        <input type="file" name="file" multiple required />
+        <input type="text" name="key" placeholder="optional: override key (single file only)" />
         <button class="btn" type="submit">Upload</button>
       </div>
-      <p class="muted" style="margin-bottom:0;">Uploads into current prefix unless you override key.</p>
+      <p class="muted" style="margin-bottom:0;">Select one or more files. Uploads into current prefix unless you override key.</p>
     </form>
   </div>
 
