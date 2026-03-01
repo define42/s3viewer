@@ -69,6 +69,8 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	prefix := r.URL.Query().Get("prefix")
+
 	reader, err := r.MultipartReader()
 	if err != nil {
 		a.renderError(w, "MultipartReader failed", err, http.StatusBadRequest)
@@ -114,7 +116,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 			Bucket:      aws.String(bucket),
-			Key:         aws.String(filename),
+			Key:         aws.String(prefix + filename),
 			Body:        bytes.NewReader(buf.Bytes()),
 			ContentType: optionalString(contentType),
 		})
@@ -130,7 +132,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {

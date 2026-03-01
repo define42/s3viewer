@@ -84,7 +84,7 @@ func newAppMux(a *app) http.Handler {
 	router.HandleFunc("/bucket/create", a.handleCreateBucket)
 	router.HandleFunc("/bucket/delete/{bucket}", a.handleDeleteBucket)
 	router.HandleFunc("/object/upload/{bucket}", a.handleUpload)
-	router.HandleFunc("/object/delete/{bucket}/{key}", a.handleDeleteObject)
+	router.HandleFunc("/object/delete/{bucket}/{key:.+}", a.handleDeleteObject)
 
 	// READ
 	router.HandleFunc("/", a.handleIndex)                                              // list buckets + forms

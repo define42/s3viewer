@@ -144,11 +144,11 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 	type prefixRow struct{ Name, URL string }
 	type objRow struct {
-		Key, Size, LastModified, ETag, DetailsURL, DownloadURL string
-		Metadata                                               []kv
-		Tags                                                   []kv
-		MetadataError                                          string
-		TagError                                               string
+		Key, Size, LastModified, ETag, DetailsURL, DownloadURL, DeleteURL string
+		Metadata                                                           []kv
+		Tags                                                               []kv
+		MetadataError                                                      string
+		TagError                                                           string
 	}
 
 	crumbs := breadcrumbs(bucket, prefix)
@@ -207,6 +207,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			ETag:          strings.Trim(aws.ToString(o.ETag), `"`),
 			DetailsURL:    fmt.Sprintf("/object/view/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 			DownloadURL:   fmt.Sprintf("/object/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+			DeleteURL:     fmt.Sprintf("/object/delete/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 			Metadata:      metadata,
 			Tags:          tags,
 			MetadataError: metadataErrStr,
@@ -260,7 +261,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"HasNext":     hasNext,
 		"NextPageURL": nextPageURL,
 
-		"UploadAction":     fmt.Sprintf("/object/upload/%s", url.PathEscape(bucket)),
+		"UploadAction":     fmt.Sprintf("/object/upload/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)),
 		"DeleteBucketPOST": fmt.Sprintf("/bucket/delete/%s", url.PathEscape(bucket)),
 	})
 }

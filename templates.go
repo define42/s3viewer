@@ -252,7 +252,7 @@ const htmlTemplates = `
     <h4>Objects</h4>
     {{if not .Objects}}<div class="muted">No objects.</div>{{end}}
     <table>
-      <thead><tr><th>Key</th><th>Size</th><th>Last modified</th><th>Metadata</th><th>Tags</th><th></th></tr></thead>
+      <thead><tr><th>Key</th><th>Size</th><th>Last modified</th><th>Metadata</th><th>Tags</th><th></th><th></th></tr></thead>
       <tbody>
         {{range .Objects}}
           <tr>
@@ -282,6 +282,13 @@ const htmlTemplates = `
               {{end}}
             </td>
             <td><a class="btn" href="{{.DownloadURL}}">Download</a></td>
+            <td>
+              <form method="post" action="{{.DeleteURL}}" onsubmit="return confirm('Delete object?');" style="margin:0;">
+                <input type="hidden" name="bucket" value="{{$.Bucket}}" />
+                <input type="hidden" name="key" value="{{.Key}}" />
+                <button class="btn danger" type="submit">Delete</button>
+              </form>
+            </td>
           </tr>
         {{end}}
       </tbody>
