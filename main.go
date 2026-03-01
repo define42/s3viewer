@@ -13,12 +13,13 @@ import (
 )
 
 type app struct {
-	tpl            *template.Template
-	region         string
-	endpoint       string
-	forcePathStyle bool
-	cookieName     string
-	cookie         *securecookie.SecureCookie
+	tpl             *template.Template
+	region          string
+	endpoint        string
+	forcePathStyle  bool
+	cookieName      string
+	cookie          *securecookie.SecureCookie
+	endpointSkipTls bool
 }
 
 func main() {
@@ -51,6 +52,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
+	endpointSkipTls := strings.EqualFold(strings.TrimSpace(getenv("S3_ENDPOINT_TLSSKIP", "")), "false")
 	forcePathStyle := strings.EqualFold(strings.TrimSpace(getenv("S3_FORCE_PATH_STYLE", "")), "true")
 
 	sc, err := newSecureCookieFromEnv()
@@ -59,12 +61,13 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	}
 
 	a := &app{
-		tpl:            newTemplates(),
-		region:         region,
-		endpoint:       endpoint,
-		forcePathStyle: forcePathStyle,
-		cookieName:     sessionCookieName,
-		cookie:         sc,
+		tpl:             newTemplates(),
+		region:          region,
+		endpoint:        endpoint,
+		forcePathStyle:  forcePathStyle,
+		cookieName:      sessionCookieName,
+		cookie:          sc,
+		endpointSkipTls: endpointSkipTls,
 	}
 
 	return a, newAppMux(a), listen, nil

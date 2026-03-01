@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -13,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, accessKey, secretKey, sessionToken string) (aws.Config, error) {
+func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, accessKey, secretKey, sessionToken string, endpointSkipTls bool) (aws.Config, error) {
 	if strings.TrimSpace(accessKey) == "" || strings.TrimSpace(secretKey) == "" {
 		return aws.Config{}, fmt.Errorf("access key and secret key are required")
 	}
@@ -23,6 +25,17 @@ func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, a
 		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, sessionToken)),
 	)
+
+	// Skip TLS verification (ONLY if requested)
+	if endpointSkipTls {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		if tr.TLSClientConfig == nil {
+			tr.TLSClientConfig = &tls.Config{}
+		}
+		tr.TLSClientConfig.InsecureSkipVerify = true
+
+		optFns = append(optFns, config.WithHTTPClient(&http.Client{Transport: tr}))
+	}
 
 	awsCfg, err := config.LoadDefaultConfig(ctx, optFns...)
 	if err != nil {
@@ -39,9 +52,8 @@ func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, a
 
 	return awsCfg, nil
 }
-
-func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bool, accessKey, secretKey, sessionToken string) (*s3.Client, error) {
-	cfg, err := loadAWSConfigWithStaticCredentials(ctx, region, endpoint, accessKey, secretKey, sessionToken)
+func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bool, accessKey, secretKey, sessionToken string, endpointSkipTls bool) (*s3.Client, error) {
+	cfg, err := loadAWSConfigWithStaticCredentials(ctx, region, endpoint, accessKey, secretKey, sessionToken, endpointSkipTls)
 	if err != nil {
 		return nil, err
 	}

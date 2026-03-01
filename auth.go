@@ -138,7 +138,7 @@ func (a *app) authenticatedS3Client(w http.ResponseWriter, r *http.Request) (*s3
 		return nil, false
 	}
 
-	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, sess.AccessKey, sess.SecretKey, "")
+	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, sess.AccessKey, sess.SecretKey, "", a.endpointSkipTls)
 	if err != nil {
 		a.renderError(w, "Could not initialize S3 client", err, http.StatusInternalServerError)
 		return nil, false
@@ -179,7 +179,7 @@ func (a *app) handleLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, accessKey, secretKey, "")
+		client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, accessKey, secretKey, "", a.endpointSkipTls)
 		if err != nil {
 			a.renderLogin(w, accessKey, "failed to create S3 client")
 			return
