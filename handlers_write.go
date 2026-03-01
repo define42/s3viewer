@@ -258,8 +258,15 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
 	}
-	bucket := strings.TrimSpace(r.FormValue("bucket"))
-	key := r.FormValue("key")
+	vars := mux.Vars(r)
+	bucket := strings.TrimSpace(vars["bucket"])
+	key := vars["key"]
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if formKey := r.FormValue("key"); formKey != "" {
+		key = formKey
+	}
 	if bucket == "" || key == "" {
 		http.Error(w, "bucket and key required", http.StatusBadRequest)
 		return

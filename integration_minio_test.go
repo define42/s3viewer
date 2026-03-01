@@ -148,7 +148,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 		t.Fatalf("expected downloaded object body to contain uploaded content")
 	}
 
-	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete", url.Values{
+	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("integration/a.txt"), url.Values{
 		"bucket": {bucket},
 		"key":    {"integration/a.txt"},
 	})
@@ -161,7 +161,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, deleteNonEmptyBucketResp, http.StatusBadGateway)
 	discardAndClose(t, deleteNonEmptyBucketResp)
 
-	deleteObjectResp2 := postForm(t, client, srv.URL+"/object/delete", url.Values{
+	deleteObjectResp2 := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("integration/b.txt"), url.Values{
 		"bucket": {bucket},
 		"key":    {"integration/b.txt"},
 	})

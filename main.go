@@ -72,6 +72,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 
 func newAppMux(a *app) http.Handler {
 	router := mux.NewRouter()
+	router.UseEncodedPath()
 	router.HandleFunc("/login", a.handleLogin)
 	router.HandleFunc("/logout", a.handleLogout)
 
@@ -80,7 +81,7 @@ func newAppMux(a *app) http.Handler {
 	router.HandleFunc("/bucket/create", a.handleCreateBucket)
 	router.HandleFunc("/bucket/delete", a.handleDeleteBucket)
 	router.HandleFunc("/object/upload/{bucket}", a.handleUpload)
-	router.HandleFunc("/object/delete", a.handleDeleteObject)
+	router.HandleFunc("/object/delete/{bucket}/{key}", a.handleDeleteObject)
 
 	// READ
 	router.HandleFunc("/", a.handleIndex)                           // list buckets + forms
