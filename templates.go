@@ -331,6 +331,15 @@ const htmlTemplates = `
   </div>
 
   <div class="card">
+    <h4 style="margin-top:0;">Rename object</h4>
+    <form method="post" action="{{.RenameObjectPOST}}" class="row">
+      <input type="hidden" name="bucket" value="{{.Bucket}}" />
+      <input type="hidden" name="key" value="{{.Key}}" />
+      <input type="text" name="new_key" placeholder="new/key/path" value="{{.Key}}" required />
+      <button class="btn" type="submit">Rename</button>
+    </form>
+
+  <div class="card">
     <h4 style="margin-top:0;">Tags</h4>
     {{if hasErr .TagError}}
       <div class="warn">

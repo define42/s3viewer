@@ -153,6 +153,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 		"BackURL":          backURL,
 		"DownloadURL":      fmt.Sprintf("/object/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 		"DeleteObjectPOST": fmt.Sprintf("/object/delete/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+		"RenameObjectPOST": fmt.Sprintf("/object/rename/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 	})
 }
 
