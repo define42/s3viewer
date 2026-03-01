@@ -231,6 +231,19 @@ const htmlTemplates = `
   </div>
 
   <div class="card">
+    <h4 style="margin-top:0;">Bucket tags</h4>
+    {{if hasErr .BucketTagError}}
+      <div class="muted">{{.BucketTagError}}</div>
+    {{else if not .BucketTags}}
+      <div class="muted">No tags.</div>
+    {{else}}
+      {{range .BucketTags}}
+        <div><code>{{.K}}</code>=<code>{{.V}}</code></div>
+      {{end}}
+    {{end}}
+  </div>
+
+  <div class="card">
     <h4>Folders</h4>
     {{if not .Folders}}<div class="muted">No folders.</div>{{end}}
     <ul>

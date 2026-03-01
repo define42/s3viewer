@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,9 +13,15 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 )
 
 const bucketPageSize = 10
+
+func isNoSuchTagSetError(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchTagSet"
+}
 
 // ---------------- Index (buckets + forms) ----------------
 
@@ -110,6 +117,18 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	token := r.URL.Query().Get("token")
 	prevTokens := append([]string(nil), r.URL.Query()["prev"]...)
+
+	bucketTags := []kv(nil)
+	bucketTagError := ""
+	bucketTagOut, bucketTagErr := s3Client.GetBucketTagging(r.Context(), &s3.GetBucketTaggingInput{
+		Bucket: aws.String(bucket),
+	})
+	if bucketTagErr == nil {
+		bucketTags = tagsToKVs(bucketTagOut.TagSet)
+	} else if !isNoSuchTagSetError(bucketTagErr) {
+		bucketTagError = "unavailable"
+		log.Printf("GetBucketTagging failed in bucket browse (non-fatal): %v", bucketTagErr)
+	}
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
@@ -228,6 +247,8 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"Bucket":          bucket,
 		"Prefix":          prefix,
 		"Crumbs":          crumbs,
+		"BucketTags":      bucketTags,
+		"BucketTagError":  bucketTagError,
 		"UpPrefix":        upPrefix,
 		"IsAuthenticated": true,
 
