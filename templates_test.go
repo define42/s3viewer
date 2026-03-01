@@ -34,6 +34,30 @@ func TestRender(t *testing.T) {
 	}
 }
 
+func TestRenderIndexIncludesCreateBucketPathAction(t *testing.T) {
+	a := newAuthUnitTestApp()
+	rec := httptest.NewRecorder()
+	a.render(rec, "index", map[string]any{
+		"Title":           "Buckets",
+		"Buckets":         []any{},
+		"IsAuthenticated": true,
+	})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/bucket/create/"`) {
+		t.Fatalf("expected create bucket form action to include /bucket/create/")
+	}
+	if !strings.Contains(body, `onsubmit="return setCreateBucketAction(this);"`) {
+		t.Fatalf("expected create bucket form to set dynamic path action on submit")
+	}
+	if !strings.Contains(body, `form.action = "/bucket/create/" + encodeURIComponent(bucket);`) {
+		t.Fatalf("expected create bucket form script to URL-encode bucket path segment")
+	}
+}
+
 func TestRenderError(t *testing.T) {
 	a := newAuthUnitTestApp()
 	rec := httptest.NewRecorder()

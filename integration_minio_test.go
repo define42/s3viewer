@@ -79,9 +79,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	discardAndClose(t, loginResp)
 
 	bucket := fmt.Sprintf("integration-bucket-%d", time.Now().UnixNano())
-	createResp := postForm(t, client, srv.URL+"/bucket/create", url.Values{
-		"bucket": {bucket},
-	})
+	createResp := postForm(t, client, srv.URL+"/bucket/create/"+url.PathEscape(bucket), url.Values{})
 	requireStatus(t, createResp, http.StatusSeeOther)
 	discardAndClose(t, createResp)
 

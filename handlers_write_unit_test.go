@@ -68,7 +68,7 @@ func TestWriteHandlerFieldValidation(t *testing.T) {
 		body       string
 		wantStatus int
 	}{
-		{name: "create bucket missing bucket", handler: a.handleCreateBucket, path: "/bucket/create", body: "", wantStatus: http.StatusBadRequest},
+		{name: "create bucket missing bucket", handler: a.handleCreateBucket, path: "/bucket/create/", body: "", wantStatus: http.StatusBadRequest},
 		{name: "delete object missing key", handler: a.handleDeleteObject, path: "/object/delete", body: "bucket=test", wantStatus: http.StatusBadRequest},
 		{name: "delete bucket missing bucket", handler: a.handleDeleteBucket, path: "/bucket/delete", body: "", wantStatus: http.StatusBadRequest},
 		{name: "goto bucket missing bucket", handler: a.handleGoToBucket, path: "/bucket/goto", body: "", wantStatus: http.StatusBadRequest},

@@ -90,7 +90,7 @@ func newAppMux(a *app) http.Handler {
 
 	// WRITE (POST)
 	router.HandleFunc("/bucket/goto", a.handleGoToBucket)
-	router.HandleFunc("/bucket/create", a.handleCreateBucket)
+	router.HandleFunc("/bucket/create/{bucket}", a.handleCreateBucket)
 	router.HandleFunc("/bucket/delete/{bucket}", a.handleDeleteBucket)
 	router.HandleFunc("/object/upload/{bucket}", a.handleUpload)
 	router.HandleFunc("/object/delete/{bucket}/{key:.+}", a.handleDeleteObject)

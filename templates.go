@@ -148,10 +148,21 @@ const htmlTemplates = `
 
     <div class="card">
       <h3 style="margin-top:0;">Create bucket</h3>
-      <form method="post" action="/bucket/create" class="row">
+      <form method="post" action="/bucket/create/" class="row" onsubmit="return setCreateBucketAction(this);">
         <input type="text" name="bucket" placeholder="bucket-name" required />
         <button class="btn" type="submit">Create</button>
       </form>
+      <script>
+        function setCreateBucketAction(form) {
+          const bucketInput = form.querySelector('input[name="bucket"]');
+          const bucket = bucketInput ? bucketInput.value.trim() : "";
+          if (!bucket) {
+            return false;
+          }
+          form.action = "/bucket/create/" + encodeURIComponent(bucket);
+          return true;
+        }
+      </script>
       <p class="muted" style="margin-bottom:0;">Bucket naming rules depend on provider; keep it DNS-safe.</p>
     </div>
   </div>

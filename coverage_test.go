@@ -245,9 +245,8 @@ func TestHandleCreateBucketS3Error(t *testing.T) {
 	a := newAuthUnitTestApp()
 	a.region = "eu-west-1" // triggers the LocationConstraint branch
 
-	body := "bucket=new-bucket"
-	req := httptest.NewRequest(http.MethodPost, "/bucket/create", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req := httptest.NewRequest(http.MethodPost, "/bucket/create/new-bucket", nil)
+	req = mux.SetURLVars(req, map[string]string{"bucket": "new-bucket"})
 	addSessionCookieToRequest(t, a, req)
 
 	rec := httptest.NewRecorder()

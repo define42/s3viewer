@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -25,12 +26,7 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
-	if err := r.ParseForm(); err != nil {
-		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
-		return
-	}
-	bucket := strings.TrimSpace(r.FormValue("bucket"))
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
 	if bucket == "" {
 		http.Error(w, "bucket is required", http.StatusBadRequest)
 		return
@@ -79,6 +75,8 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 	uploadedCount := 0
 
+	var uploadFileNames []string
+
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
@@ -100,6 +98,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 			_ = part.Close()
 			continue
 		}
+		uploadFileNames = append(uploadFileNames, filename)
 
 		var buf bytes.Buffer
 		contentType := part.Header.Get("Content-Type")
@@ -126,6 +125,8 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		uploadedCount++
 	}
+
+	slog.Info("FileUpload", "Files", uploadFileNames)
 
 	if uploadedCount == 0 {
 		http.Error(w, "at least one file is required", http.StatusBadRequest)

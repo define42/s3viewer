@@ -70,7 +70,7 @@ func TestHandlersRequireSessionRedirect(t *testing.T) {
 		path    string
 	}{
 		{name: "index", handler: a.handleIndex, method: http.MethodGet, path: "/"},
-		{name: "create bucket", handler: a.handleCreateBucket, method: http.MethodPost, path: "/bucket/create"},
+		{name: "create bucket", handler: a.handleCreateBucket, method: http.MethodPost, path: "/bucket/create/test-bucket"},
 		{name: "upload", handler: a.handleUpload, method: http.MethodPost, path: "/object/upload/test-bucket"},
 	}
 
