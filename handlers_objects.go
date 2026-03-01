@@ -60,11 +60,13 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	bucket, key := parts[0], parts[1]
 
-	ctx := r.Context()
-
-	head, err := a.s3.HeadObject(ctx, &s3.HeadObjectInput{
+	head, err := s3Client.HeadObject(r.Context(), &s3.HeadObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
@@ -79,7 +81,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 	// Tags (may require s3:GetObjectTagging; treat errors as non-fatal)
 	var tags []kv
 	var tagErrStr string
-	tagOut, tagErr := a.s3.GetObjectTagging(ctx, &s3.GetObjectTaggingInput{
+	tagOut, tagErr := s3Client.GetObjectTagging(r.Context(), &s3.GetObjectTaggingInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
@@ -135,14 +137,15 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 	backURL := fmt.Sprintf("/bucket/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent))
 
 	a.render(w, "object", map[string]any{
-		"Title":        "Object details",
-		"Bucket":       bucket,
-		"Key":          key,
-		"Size":         humanBytes(aws.ToInt64(head.ContentLength)),
-		"ContentType":  aws.ToString(head.ContentType),
-		"LastModified": timeStr(head.LastModified),
-		"ETag":         strings.Trim(aws.ToString(head.ETag), `"`),
-		"StorageClass": string(head.StorageClass),
+		"Title":           "Object details",
+		"Bucket":          bucket,
+		"Key":             key,
+		"Size":            humanBytes(aws.ToInt64(head.ContentLength)),
+		"ContentType":     aws.ToString(head.ContentType),
+		"LastModified":    timeStr(head.LastModified),
+		"ETag":            strings.Trim(aws.ToString(head.ETag), `"`),
+		"StorageClass":    string(head.StorageClass),
+		"IsAuthenticated": true,
 
 		"UserMetadata":   userMeta,
 		"SystemMetadata": sys,
@@ -164,10 +167,12 @@ func (a *app) handleDownload(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	bucket, key := parts[0], parts[1]
-
-	ctx := r.Context()
-	out, err := a.s3.GetObject(ctx, &s3.GetObjectInput{
+	out, err := s3Client.GetObject(r.Context(), &s3.GetObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})

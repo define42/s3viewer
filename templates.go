@@ -27,6 +27,9 @@ func newTemplates() *template.Template {
 func (a *app) render(w http.ResponseWriter, name string, data map[string]any) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	data["Now"] = time.Now().Format(time.RFC3339)
+	if _, ok := data["IsAuthenticated"]; !ok {
+		data["IsAuthenticated"] = false
+	}
 	if err := a.tpl.ExecuteTemplate(w, name, data); err != nil {
 		log.Printf("template error: %v", err)
 		http.Error(w, "template error", http.StatusInternalServerError)
@@ -57,6 +60,8 @@ const htmlTemplates = `
   <title>{{.Title}}</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
     a { text-decoration: none; }
     a:hover { text-decoration: underline; }
     .muted { color: #666; }
@@ -68,15 +73,25 @@ const htmlTemplates = `
     code { background: #f5f5f5; padding: 2px 4px; border-radius: 4px; }
     .btn { display:inline-block; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer;}
     input[type="text"]{ padding:8px; border:1px solid #ddd; border-radius: 8px; min-width: 280px;}
+    input[type="password"]{ padding:8px; border:1px solid #ddd; border-radius: 8px; min-width: 280px;}
     input[type="file"]{ padding:6px; }
     .danger { border-color:#f1c3c3; }
     .warn { border: 1px solid #f0d7a1; background: #fff8e6; padding: 10px; border-radius: 10px; }
   </style>
 </head>
 <body>
-  <div class="row">
-    <h2 style="margin:0;"><a href="/">S3 Viewer</a></h2>
-    <span class="muted">Generated: {{.Now}}</span>
+  <div class="topbar">
+    <div class="row">
+      <h2 style="margin:0;"><a href="/">S3 Viewer</a></h2>
+    </div>
+    <div class="topbar-right">
+      <span class="muted">Generated: {{.Now}}</span>
+      {{if .IsAuthenticated}}
+      <form method="post" action="/logout" style="margin:0;">
+        <button class="btn" type="submit">Logout</button>
+      </form>
+      {{end}}
+    </div>
   </div>
   <hr/>
 {{end}}
@@ -121,6 +136,31 @@ const htmlTemplates = `
       {{end}}
       </tbody>
     </table>
+  </div>
+{{template "layout-end" .}}
+{{end}}
+
+{{define "login"}}
+{{template "layout-start" .}}
+  <div class="card" style="max-width:480px;">
+    <h3 style="margin-top:0;">Login</h3>
+    <form method="post" action="/login">
+      <div class="row">
+        <input type="text" name="access_key" value="{{.AccessKey}}" placeholder="Access Key" required />
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <input type="password" name="secret_key" placeholder="Secret Key" required />
+      </div>
+      {{if hasErr .LoginError}}
+        <p class="warn">
+          <strong>Login failed</strong><br/>
+          <span class="muted">{{.LoginError}}</span>
+        </p>
+      {{end}}
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" type="submit">Login</button>
+      </div>
+    </form>
   </div>
 {{template "layout-end" .}}
 {{end}}

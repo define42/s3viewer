@@ -1,46 +1,47 @@
 package main
 
 import (
-	"context"
 	"html/template"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/gorilla/securecookie"
 )
 
 type app struct {
-	s3     *s3.Client
-	tpl    *template.Template
-	region string
+	tpl            *template.Template
+	region         string
+	endpoint       string
+	forcePathStyle bool
+	cookieName     string
+	cookie         *securecookie.SecureCookie
 }
 
 func main() {
-	ctx := context.Background()
-
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
-	forcePathStyle := strings.EqualFold(strings.TrimSpace(os.Getenv("S3_FORCE_PATH_STYLE")), "true")
+	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
+	forcePathStyle := strings.EqualFold(strings.TrimSpace(getenv("S3_FORCE_PATH_STYLE", "")), "true")
 
-	awsCfg, err := loadAWSConfig(ctx, region)
+	sc, err := newSecureCookieFromEnv()
 	if err != nil {
-		log.Fatalf("aws config: %v", err)
+		log.Fatalf("securecookie config: %v", err)
 	}
 
-	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.UsePathStyle = forcePathStyle
-	})
-
 	a := &app{
-		s3:     client,
-		tpl:    newTemplates(),
-		region: region,
+		tpl:            newTemplates(),
+		region:         region,
+		endpoint:       endpoint,
+		forcePathStyle: forcePathStyle,
+		cookieName:     sessionCookieName,
+		cookie:         sc,
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/login", a.handleLogin)
+	mux.HandleFunc("/logout", a.handleLogout)
 
 	// READ
 	mux.HandleFunc("/", a.handleIndex)               // list buckets + forms

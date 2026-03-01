@@ -20,9 +20,12 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	ctx := r.Context()
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 
-	out, err := a.s3.ListBuckets(ctx, &s3.ListBucketsInput{})
+	out, err := s3Client.ListBuckets(r.Context(), &s3.ListBucketsInput{})
 	if err != nil {
 		a.renderError(w, "ListBuckets failed", err, http.StatusBadGateway)
 		return
@@ -49,8 +52,9 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.render(w, "index", map[string]any{
-		"Title":   "Buckets",
-		"Buckets": rows,
+		"Title":           "Buckets",
+		"Buckets":         rows,
+		"IsAuthenticated": true,
 	})
 }
 
@@ -58,6 +62,10 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -71,8 +79,7 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Optional validation (friendly errors)
-	ctx := r.Context()
-	_, err := a.s3.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(bucket)})
+	_, err := s3Client.HeadBucket(r.Context(), &s3.HeadBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {
 		a.renderError(w, "HeadBucket failed (bucket may not exist or you lack access)", err, http.StatusBadGateway)
 		return
@@ -90,14 +97,17 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	bucket := p
 
 	prefix := r.URL.Query().Get("prefix")
 	maxKeys := parseIntClamp(r.URL.Query().Get("max"), 200, 1, 1000)
 	token := r.URL.Query().Get("token")
 
-	ctx := r.Context()
-	out, err := a.s3.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
+	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
 		Prefix:            aws.String(prefix),
 		Delimiter:         aws.String("/"),
@@ -153,11 +163,12 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.render(w, "bucket", map[string]any{
-		"Title":    "Browse bucket",
-		"Bucket":   bucket,
-		"Prefix":   prefix,
-		"Crumbs":   crumbs,
-		"UpPrefix": upPrefix,
+		"Title":           "Browse bucket",
+		"Bucket":          bucket,
+		"Prefix":          prefix,
+		"Crumbs":          crumbs,
+		"UpPrefix":        upPrefix,
+		"IsAuthenticated": true,
 
 		"Folders": folders,
 		"Objects": objects,

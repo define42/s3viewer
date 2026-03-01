@@ -18,6 +18,10 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -28,8 +32,6 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-
 	in := &s3.CreateBucketInput{Bucket: aws.String(bucket)}
 	// AWS: for regions != us-east-1, you typically need LocationConstraint
 	if a.region != "us-east-1" {
@@ -38,7 +40,7 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err := a.s3.CreateBucket(ctx, in)
+	_, err := s3Client.CreateBucket(r.Context(), in)
 	if err != nil {
 		a.renderError(w, "CreateBucket failed", err, http.StatusBadGateway)
 		return
@@ -50,6 +52,10 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
 		return
 	}
 
@@ -84,7 +90,6 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		keyPrefix += "/"
 	}
 
-	ctx := r.Context()
 	for _, hdr := range files {
 		f, err := hdr.Open()
 		if err != nil {
@@ -102,7 +107,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 		contentType := hdr.Header.Get("Content-Type")
 
-		_, err = a.s3.PutObject(ctx, &s3.PutObjectInput{
+		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(key),
 			Body:        f,
@@ -127,6 +132,10 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -138,8 +147,7 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	_, err := a.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
+	_, err := s3Client.DeleteObject(r.Context(), &s3.DeleteObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 	})
@@ -157,6 +165,10 @@ func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
 		return
 	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -167,8 +179,7 @@ func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := r.Context()
-	_, err := a.s3.DeleteBucket(ctx, &s3.DeleteBucketInput{Bucket: aws.String(bucket)})
+	_, err := s3Client.DeleteBucket(r.Context(), &s3.DeleteBucketInput{Bucket: aws.String(bucket)})
 	if err != nil {
 		a.renderError(w, "DeleteBucket failed (bucket must be empty)", err, http.StatusBadGateway)
 		return
