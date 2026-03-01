@@ -52,7 +52,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
-	endpointSkipTls := strings.EqualFold(strings.TrimSpace(getenv("S3_ENDPOINT_TLSSKIP", "")), "false")
+	endpointSkipTls := strings.EqualFold(strings.TrimSpace(getenv("S3_ENDPOINT_TLSSKIP", "")), "true")
 	forcePathStyle := strings.EqualFold(strings.TrimSpace(getenv("S3_FORCE_PATH_STYLE", "")), "true")
 
 	sc, err := newSecureCookieFromEnv()

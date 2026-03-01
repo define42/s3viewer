@@ -62,6 +62,7 @@ Then open `http://localhost:8080` and login with your S3 credentials.
 - `AWS_REGION` or `S3_REGION` (default `eu-west-1`)
 - `AWS_ENDPOINT_URL` or `S3_ENDPOINT` (optional, for S3-compatible endpoints like MinIO)
 - `S3_FORCE_PATH_STYLE` (`true` for many S3-compatible providers)
+- `S3_ENDPOINT_TLSSKIP` (`true` to skip TLS certificate verification; only use with trusted private endpoints)
 
 ### Session cookie keys
 
