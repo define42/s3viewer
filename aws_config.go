@@ -48,6 +48,8 @@ func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bo
 
 	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.UsePathStyle = forcePathStyle
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationUnset
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationUnset
 	})
 	return client, nil
 }

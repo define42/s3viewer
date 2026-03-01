@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/gorilla/mux"
@@ -64,36 +63,19 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if bucket == "" {
+		http.Error(w, "bucket is required", http.StatusBadRequest)
+		return
+	}
+
 	reader, err := r.MultipartReader()
 	if err != nil {
 		a.renderError(w, "MultipartReader failed", err, http.StatusBadRequest)
 		return
 	}
-	uploader := manager.NewUploader(s3Client, func(u *manager.Uploader) {
-		// Concurrency 1 keeps memory usage predictable for non-seekable request bodies.
-		u.Concurrency = 1
-	})
 
-	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
-	prefix := ""
-	overrideKey := ""
 	uploadedCount := 0
-	sawFilePart := false
-
-	type pendingUpload struct {
-		contentType string
-		data        []byte
-	}
-	var pendingOverrideUpload *pendingUpload
-
-	buildKey := func(name string) string {
-		keyPrefix := strings.TrimPrefix(prefix, "/")
-		if keyPrefix != "" && !strings.HasSuffix(keyPrefix, "/") {
-			keyPrefix += "/"
-		}
-		key := keyPrefix + strings.TrimPrefix(name, "/")
-		return strings.TrimPrefix(key, "/")
-	}
 
 	for {
 		part, err := reader.NextPart()
@@ -105,124 +87,36 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		switch part.FormName() {
-		case "bucket":
-			if sawFilePart {
-				_ = part.Close()
-				http.Error(w, "bucket, prefix, and key fields must be sent before file fields", http.StatusBadRequest)
-				return
-			}
-			val, readErr := io.ReadAll(part)
-			_ = part.Close()
-			if readErr != nil {
-				a.renderError(w, "failed to read bucket field", readErr, http.StatusBadRequest)
-				return
-			}
-			bucket = strings.TrimSpace(string(val))
-
-		case "prefix":
-			if sawFilePart {
-				_ = part.Close()
-				http.Error(w, "bucket, prefix, and key fields must be sent before file fields", http.StatusBadRequest)
-				return
-			}
-			val, readErr := io.ReadAll(part)
-			_ = part.Close()
-			if readErr != nil {
-				a.renderError(w, "failed to read prefix field", readErr, http.StatusBadRequest)
-				return
-			}
-			prefix = string(val)
-
-		case "key":
-			if sawFilePart {
-				_ = part.Close()
-				http.Error(w, "bucket, prefix, and key fields must be sent before file fields", http.StatusBadRequest)
-				return
-			}
-			val, readErr := io.ReadAll(part)
-			_ = part.Close()
-			if readErr != nil {
-				a.renderError(w, "failed to read key field", readErr, http.StatusBadRequest)
-				return
-			}
-			overrideKey = strings.TrimSpace(string(val))
-
-		case "file":
-			filename := part.FileName()
-			if filename == "" {
-				_ = part.Close()
-				continue
-			}
-			sawFilePart = true
-
-			if bucket == "" {
-				_ = part.Close()
-				http.Error(w, "bucket is required before file fields", http.StatusBadRequest)
-				return
-			}
-
-			if overrideKey != "" {
-				if pendingOverrideUpload != nil {
-					_ = part.Close()
-					http.Error(w, "key override only supports a single uploaded file", http.StatusBadRequest)
-					return
-				}
-
-				var buf bytes.Buffer
-				contentType := part.Header.Get("Content-Type")
-				_, copyErr := io.Copy(&buf, part)
-				closePartErr := part.Close()
-				if copyErr != nil {
-					a.renderError(w, "failed to read uploaded file", copyErr, http.StatusBadRequest)
-					return
-				}
-				if closePartErr != nil {
-					a.renderError(w, "failed to close uploaded file stream", closePartErr, http.StatusBadRequest)
-					return
-				}
-
-				pendingOverrideUpload = &pendingUpload{
-					contentType: contentType,
-					data:        buf.Bytes(),
-				}
-				continue
-			}
-
-			_, err = uploader.Upload(r.Context(), &s3.PutObjectInput{
-				Bucket:      aws.String(bucket),
-				Key:         aws.String(buildKey(filename)),
-				Body:        part,
-				ContentType: optionalString(part.Header.Get("Content-Type")),
-			})
-			closePartErr := part.Close()
-			if err != nil {
-				a.renderError(w, "Upload failed", err, http.StatusBadGateway)
-				return
-			}
-			if closePartErr != nil {
-				a.renderError(w, "failed to close uploaded file stream", closePartErr, http.StatusBadRequest)
-				return
-			}
-			uploadedCount++
-
-		default:
+		if part.FormName() != "file" {
 			_, _ = io.Copy(io.Discard, part)
 			_ = part.Close()
+			continue
 		}
-	}
 
-	if bucket == "" {
-		http.Error(w, "bucket is required", http.StatusBadRequest)
-		return
-	}
+		filename := part.FileName()
+		if filename == "" {
+			_ = part.Close()
+			continue
+		}
 
-	if overrideKey != "" && pendingOverrideUpload != nil {
-		_, err = uploader.Upload(r.Context(), &s3.PutObjectInput{
+		var buf bytes.Buffer
+		contentType := part.Header.Get("Content-Type")
+		_, copyErr := io.Copy(&buf, part)
+		closePartErr := part.Close()
+		if copyErr != nil {
+			a.renderError(w, "failed to read uploaded file", copyErr, http.StatusBadRequest)
+			return
+		}
+		if closePartErr != nil {
+			a.renderError(w, "failed to close uploaded file stream", closePartErr, http.StatusBadRequest)
+			return
+		}
+
+		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 			Bucket:      aws.String(bucket),
-			Key:         aws.String(buildKey(overrideKey)),
-			Body:        bytes.NewReader(pendingOverrideUpload.data),
-			ContentType: optionalString(pendingOverrideUpload.contentType),
+			Key:         aws.String(filename),
+			Body:        bytes.NewReader(buf.Bytes()),
+			ContentType: optionalString(contentType),
 		})
 		if err != nil {
 			a.renderError(w, "Upload failed", err, http.StatusBadGateway)
@@ -236,12 +130,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if overrideKey != "" && uploadedCount > 1 {
-		http.Error(w, "key override only supports a single uploaded file", http.StatusBadRequest)
-		return
-	}
-
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {

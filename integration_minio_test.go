@@ -101,17 +101,14 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, gotoResp, http.StatusSeeOther)
 	discardAndClose(t, gotoResp)
 
-	uploadResp := postMultipartUpload(t, client, srv.URL+"/object/upload/"+url.PathEscape(bucket), map[string]string{
-		"bucket": bucket,
-		"prefix": "integration/",
-	}, []testUploadFile{
+	uploadResp := postMultipartUpload(t, client, srv.URL+"/object/upload/"+url.PathEscape(bucket), nil, []testUploadFile{
 		{Filename: "a.txt", Contents: "alpha"},
 		{Filename: "b.txt", Contents: "beta"},
 	})
 	requireStatus(t, uploadResp, http.StatusSeeOther)
 	discardAndClose(t, uploadResp)
 
-	browseURL := fmt.Sprintf("%s/bucket/view/%s?prefix=%s", srv.URL, url.PathEscape(bucket), url.QueryEscape("integration/"))
+	browseURL := fmt.Sprintf("%s/bucket/view/%s?prefix=", srv.URL, url.PathEscape(bucket))
 	browseResp, err := client.Get(browseURL)
 	if err != nil {
 		t.Fatalf("browse bucket request failed: %v", err)
@@ -119,25 +116,25 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, browseResp, http.StatusOK)
 
 	browseBody := readBody(t, browseResp)
-	if !strings.Contains(browseBody, "integration/a.txt") {
-		t.Fatalf("expected uploaded object key integration/a.txt in bucket page")
+	if !strings.Contains(browseBody, "a.txt") {
+		t.Fatalf("expected uploaded object key a.txt in bucket page")
 	}
-	if !strings.Contains(browseBody, "integration/b.txt") {
-		t.Fatalf("expected uploaded object key integration/b.txt in bucket page")
+	if !strings.Contains(browseBody, "b.txt") {
+		t.Fatalf("expected uploaded object key b.txt in bucket page")
 	}
 
-	objectURL := fmt.Sprintf("%s/object/view/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	objectURL := fmt.Sprintf("%s/object/view/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("a.txt"))
 	objectResp, err := client.Get(objectURL)
 	if err != nil {
 		t.Fatalf("object details request failed: %v", err)
 	}
 	requireStatus(t, objectResp, http.StatusOK)
 	objectBody := readBody(t, objectResp)
-	if !strings.Contains(objectBody, "integration/a.txt") {
-		t.Fatalf("expected object details page to include key integration/a.txt")
+	if !strings.Contains(objectBody, "a.txt") {
+		t.Fatalf("expected object details page to include key a.txt")
 	}
 
-	downloadURL := fmt.Sprintf("%s/object/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	downloadURL := fmt.Sprintf("%s/object/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("a.txt"))
 	downloadResp, err := client.Get(downloadURL)
 	if err != nil {
 		t.Fatalf("download request failed: %v", err)
@@ -148,9 +145,9 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 		t.Fatalf("expected downloaded object body to contain uploaded content")
 	}
 
-	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("integration/a.txt"), url.Values{
+	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("a.txt"), url.Values{
 		"bucket": {bucket},
-		"key":    {"integration/a.txt"},
+		"key":    {"a.txt"},
 	})
 	requireStatus(t, deleteObjectResp, http.StatusSeeOther)
 	discardAndClose(t, deleteObjectResp)
@@ -161,9 +158,9 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, deleteNonEmptyBucketResp, http.StatusBadGateway)
 	discardAndClose(t, deleteNonEmptyBucketResp)
 
-	deleteObjectResp2 := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("integration/b.txt"), url.Values{
+	deleteObjectResp2 := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape("b.txt"), url.Values{
 		"bucket": {bucket},
-		"key":    {"integration/b.txt"},
+		"key":    {"b.txt"},
 	})
 	requireStatus(t, deleteObjectResp2, http.StatusSeeOther)
 	discardAndClose(t, deleteObjectResp2)

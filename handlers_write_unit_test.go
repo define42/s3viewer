@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func TestHandleUploadMultipartReaderFailure(t *testing.T) {
 	a := newAuthUnitTestApp()
 
 	req := httptest.NewRequest(http.MethodPost, "/upload", bytes.NewBufferString("not-multipart"))
+	req = mux.SetURLVars(req, map[string]string{"bucket": "bkt"})
 	req.Header.Set("Content-Type", "text/plain")
 	addSessionCookieToRequest(t, a, req)
 
@@ -27,7 +30,7 @@ func TestHandleUploadValidationErrors(t *testing.T) {
 	a := newAuthUnitTestApp()
 
 	t.Run("missing bucket", func(t *testing.T) {
-		body, contentType := multipartBody(t, map[string]string{"prefix": "a/"}, []testUploadFile{{Filename: "a.txt", Contents: "alpha"}})
+		body, contentType := multipartBody(t, nil, []testUploadFile{{Filename: "a.txt", Contents: "alpha"}})
 		req := httptest.NewRequest(http.MethodPost, "/upload", body)
 		req.Header.Set("Content-Type", contentType)
 		addSessionCookieToRequest(t, a, req)
@@ -40,8 +43,9 @@ func TestHandleUploadValidationErrors(t *testing.T) {
 	})
 
 	t.Run("no files", func(t *testing.T) {
-		body, contentType := multipartBody(t, map[string]string{"bucket": "bkt", "prefix": "a/"}, nil)
+		body, contentType := multipartBody(t, nil, nil)
 		req := httptest.NewRequest(http.MethodPost, "/upload", body)
+		req = mux.SetURLVars(req, map[string]string{"bucket": "bkt"})
 		req.Header.Set("Content-Type", contentType)
 		addSessionCookieToRequest(t, a, req)
 
@@ -52,21 +56,6 @@ func TestHandleUploadValidationErrors(t *testing.T) {
 		}
 	})
 
-	t.Run("override key with multiple files", func(t *testing.T) {
-		body, contentType := multipartBody(t, map[string]string{"bucket": "bkt", "prefix": "a/", "key": "single.txt"}, []testUploadFile{
-			{Filename: "a.txt", Contents: "alpha"},
-			{Filename: "b.txt", Contents: "beta"},
-		})
-		req := httptest.NewRequest(http.MethodPost, "/upload", body)
-		req.Header.Set("Content-Type", contentType)
-		addSessionCookieToRequest(t, a, req)
-
-		rec := httptest.NewRecorder()
-		a.handleUpload(rec, req)
-		if rec.Code != http.StatusBadRequest {
-			t.Fatalf("expected 400, got %d", rec.Code)
-		}
-	})
 }
 
 func TestWriteHandlerFieldValidation(t *testing.T) {
