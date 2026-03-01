@@ -18,9 +18,35 @@ const (
 	sessionTTL        = 24 * time.Hour
 )
 
+
+
 type userSession struct {
 	AccessKey string
 	SecretKey string
+}
+
+func generateRGWToken(username, password string) (string, error) {
+
+type RGWToken struct {
+	RGW_TOKEN struct {
+		Version int    `json:"version"`
+		Type    string `json:"type"` // "ad"
+		ID      string `json:"id"`   // username
+		Key     string `json:"key"`  // password
+	} `json:"RGW_TOKEN"`
+	}
+
+	token := RGWToken{}
+		token.RGW_TOKEN.Version = 1
+		token.RGW_TOKEN.Type = "ad"
+		token.RGW_TOKEN.ID = username
+		token.RGW_TOKEN.Key = password
+
+		tokenJSON, err := json.Marshal(token)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal RGW token: %w", err)
+		}
+	return base64.StdEncoding.EncodeToString(tokenJSON), nil 
 }
 
 func newSecureCookieFromEnv() (*securecookie.SecureCookie, error) {
