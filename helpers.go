@@ -13,7 +13,10 @@ import (
 // ---------------- Helpers ----------------
 
 const (
-	maxFormBodyBytes int64 = 1 << 20 // 1 MiB
+	maxFormBodyBytes    int64 = 1 << 20 // 1 MiB
+	minPresignMinutes         = 1       // 1 minute
+	maxPresignMinutes         = 10080   // 7 days
+	defaultPresignMinutes     = 60      // 1 hour
 )
 
 func optionalString(s string) *string {

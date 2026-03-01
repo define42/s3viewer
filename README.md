@@ -15,6 +15,7 @@ Simple web UI for S3-compatible object storage (AWS S3, MinIO, etc.).
 - Upload one or multiple files
 - Create/delete buckets
 - Delete objects
+- Generate presigned download URLs (configurable expiry: 1 hour, 24 hours, or 7 days)
 
 ## Requirements
 

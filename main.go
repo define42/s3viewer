@@ -91,5 +91,6 @@ func newAppMux(a *app) http.Handler {
 	router.PathPrefix("/bucket/view/{bucket}").HandlerFunc(a.handleBucketBrowse)       // browse bucket
 	router.PathPrefix("/object/view/{bucket}/{key}").HandlerFunc(a.handleObject)       // object details (tags + metadata)
 	router.PathPrefix("/object/download/{bucket}/{key}").HandlerFunc(a.handleDownload) // download
+	router.PathPrefix("/object/presign/{bucket}/{key}").HandlerFunc(a.handlePresign)   // presigned URL
 	return router
 }

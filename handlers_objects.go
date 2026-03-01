@@ -153,6 +153,62 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 		"BackURL":          backURL,
 		"DownloadURL":      fmt.Sprintf("/object/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 		"DeleteObjectPOST": fmt.Sprintf("/object/delete/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+		"PresignPOST":      fmt.Sprintf("/object/presign/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+	})
+}
+
+// ---------------- Presigned URL ----------------
+
+// /object/presign/{bucket}/{key...}
+// GET or POST: generate a presigned download URL with configurable expiry.
+// POST form field: "minutes" (integer, 1–10080, default 60).
+func (a *app) handlePresign(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	p := strings.TrimPrefix(r.URL.Path, "/object/presign/")
+	parts := strings.SplitN(p, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		http.NotFound(w, r)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	bucket, key := parts[0], parts[1]
+
+	expiry := time.Hour // default: 1 hour
+	if r.Method == http.MethodPost {
+		r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+		if err := r.ParseForm(); err != nil {
+			a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+			return
+		}
+		minutes := parseIntClamp(r.FormValue("minutes"), defaultPresignMinutes, minPresignMinutes, maxPresignMinutes)
+		expiry = time.Duration(minutes) * time.Minute
+	}
+
+	presignClient := s3.NewPresignClient(s3Client)
+	presigned, err := presignClient.PresignGetObject(r.Context(), &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	}, s3.WithPresignExpires(expiry))
+	if err != nil {
+		a.renderError(w, "PresignGetObject failed", err, http.StatusBadGateway)
+		return
+	}
+
+	backURL := fmt.Sprintf("/object/view/%s/%s", url.PathEscape(bucket), url.PathEscape(key))
+	a.render(w, "presign", map[string]any{
+		"Title":           "Presigned URL",
+		"Bucket":          bucket,
+		"Key":             key,
+		"PresignURL":      presigned.URL,
+		"ExpiresIn":       expiry.String(),
+		"BackURL":         backURL,
+		"IsAuthenticated": true,
 	})
 }
 

@@ -19,6 +19,7 @@ func TestHandlerPathGuards(t *testing.T) {
 		{name: "bucket browse invalid", path: "/bucket/", handler: a.handleBucketBrowse, wantStatus: http.StatusNotFound},
 		{name: "object invalid", path: "/object/view/only-bucket", handler: a.handleObject, wantStatus: http.StatusNotFound},
 		{name: "download invalid", path: "/object/download/only-bucket", handler: a.handleDownload, wantStatus: http.StatusNotFound},
+		{name: "presign invalid", path: "/object/presign/only-bucket", handler: a.handlePresign, wantStatus: http.StatusNotFound},
 	}
 
 	for _, tc := range tests {
@@ -54,6 +55,33 @@ func TestWriteHandlersMethodGuards(t *testing.T) {
 			tc.handler(rec, req)
 			if rec.Code != http.StatusMethodNotAllowed {
 				t.Fatalf("expected 405, got %d", rec.Code)
+			}
+		})
+	}
+}
+
+func TestPresignMethodGuard(t *testing.T) {
+	a := newAuthUnitTestApp()
+	req := httptest.NewRequest(http.MethodPut, "/object/presign/bkt/key.txt", nil)
+	rec := httptest.NewRecorder()
+	a.handlePresign(rec, req)
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", rec.Code)
+	}
+}
+
+func TestPresignRequiresSession(t *testing.T) {
+	a := newAuthUnitTestApp()
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		t.Run(method, func(t *testing.T) {
+			req := httptest.NewRequest(method, "/object/presign/bkt/key.txt", nil)
+			rec := httptest.NewRecorder()
+			a.handlePresign(rec, req)
+			if rec.Code != http.StatusSeeOther {
+				t.Fatalf("expected 303 redirect, got %d", rec.Code)
+			}
+			if got := rec.Header().Get("Location"); got != "/login" {
+				t.Fatalf("expected redirect to /login, got %q", got)
 			}
 		})
 	}

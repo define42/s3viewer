@@ -97,6 +97,7 @@ const htmlTemplates = `
     input[type="text"]{ padding:8px; border:1px solid var(--border); border-radius: 8px; min-width: 280px; background: var(--surface-alt); color: var(--text);}
     input[type="password"]{ padding:8px; border:1px solid var(--border); border-radius: 8px; min-width: 280px; background: var(--surface-alt); color: var(--text);}
     input[type="file"]{ padding:6px; color: var(--text); }
+    select { padding:8px; border:1px solid var(--border); border-radius: 8px; background: var(--surface-alt); color: var(--text); cursor: pointer; }
     .danger { border-color: var(--danger); color: #ffd1d1; }
     .warn { border: 1px solid var(--warn-border); background: var(--warn-bg); padding: 10px; border-radius: 10px; }
     hr { border: 0; border-top: 1px solid var(--border); }
@@ -322,6 +323,15 @@ const htmlTemplates = `
       <a class="btn" href="{{.BackURL}}">← Back</a>
       <a class="btn" href="{{.DownloadURL}}">Download</a>
 
+      <form method="post" action="{{.PresignPOST}}" style="margin:0;" class="row">
+        <select name="minutes">
+          <option value="60">1 hour</option>
+          <option value="1440">24 hours</option>
+          <option value="10080">7 days</option>
+        </select>
+        <button class="btn" type="submit">Presign URL</button>
+      </form>
+
       <form method="post" action="{{.DeleteObjectPOST}}" onsubmit="return confirm('Delete object?');">
         <input type="hidden" name="bucket" value="{{.Bucket}}" />
         <input type="hidden" name="key" value="{{.Key}}" />
@@ -383,6 +393,22 @@ const htmlTemplates = `
         </tbody>
       </table>
     {{end}}
+  </div>
+{{template "layout-end" .}}
+{{end}}
+
+{{define "presign"}}
+{{template "layout-start" .}}
+  <h3>Presigned URL</h3>
+  <div class="card">
+    <p><strong>Bucket:</strong> <code>{{.Bucket}}</code></p>
+    <p><strong>Key:</strong> <code>{{.Key}}</code></p>
+    <p><strong>Expires in:</strong> {{.ExpiresIn}}</p>
+    <p class="muted" style="margin-bottom:4px;">Share this link — no login required. It expires after the time shown above.</p>
+    <div style="word-break:break-all;"><a href="{{.PresignURL}}">{{.PresignURL}}</a></div>
+    <div class="row" style="margin-top:14px;">
+      <a class="btn" href="{{.BackURL}}">← Back</a>
+    </div>
   </div>
 {{template "layout-end" .}}
 {{end}}
