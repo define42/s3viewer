@@ -126,7 +126,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 		t.Fatalf("expected uploaded object key integration/b.txt in bucket page")
 	}
 
-	objectURL := fmt.Sprintf("%s/object/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	objectURL := fmt.Sprintf("%s/object/view/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
 	objectResp, err := client.Get(objectURL)
 	if err != nil {
 		t.Fatalf("object details request failed: %v", err)
@@ -137,7 +137,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 		t.Fatalf("expected object details page to include key integration/a.txt")
 	}
 
-	downloadURL := fmt.Sprintf("%s/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
+	downloadURL := fmt.Sprintf("%s/object/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape("integration/a.txt"))
 	downloadResp, err := client.Get(downloadURL)
 	if err != nil {
 		t.Fatalf("download request failed: %v", err)

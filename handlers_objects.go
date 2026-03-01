@@ -52,9 +52,9 @@ func tagsToKVs(tags []types.Tag) []kv {
 	return out
 }
 
-// /object/{bucket}/{key...}
+// /object/view/{bucket}/{key...}
 func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/object/")
+	p := strings.TrimPrefix(r.URL.Path, "/object/view/")
 	parts := strings.SplitN(p, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		http.NotFound(w, r)
@@ -151,7 +151,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 		"TagError":       tagErrStr,
 
 		"BackURL":          backURL,
-		"DownloadURL":      fmt.Sprintf("/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+		"DownloadURL":      fmt.Sprintf("/object/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 		"DeleteObjectPOST": fmt.Sprintf("/object/delete/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
 	})
 }
@@ -159,7 +159,7 @@ func (a *app) handleObject(w http.ResponseWriter, r *http.Request) {
 // ---------------- Download ----------------
 
 func (a *app) handleDownload(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/download/")
+	p := strings.TrimPrefix(r.URL.Path, "/object/download/")
 	parts := strings.SplitN(p, "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		http.NotFound(w, r)

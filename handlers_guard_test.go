@@ -17,8 +17,8 @@ func TestHandlerPathGuards(t *testing.T) {
 	}{
 		{name: "index not found", path: "/nope", handler: a.handleIndex, wantStatus: http.StatusNotFound},
 		{name: "bucket browse invalid", path: "/bucket/", handler: a.handleBucketBrowse, wantStatus: http.StatusNotFound},
-		{name: "object invalid", path: "/object/only-bucket", handler: a.handleObject, wantStatus: http.StatusNotFound},
-		{name: "download invalid", path: "/download/only-bucket", handler: a.handleDownload, wantStatus: http.StatusNotFound},
+		{name: "object invalid", path: "/object/view/only-bucket", handler: a.handleObject, wantStatus: http.StatusNotFound},
+		{name: "download invalid", path: "/object/download/only-bucket", handler: a.handleDownload, wantStatus: http.StatusNotFound},
 	}
 
 	for _, tc := range tests {
