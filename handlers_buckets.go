@@ -13,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
+const bucketPageSize = 10
+
 // ---------------- Index (buckets + forms) ----------------
 
 func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +92,7 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 
 // ---------------- Bucket browse ----------------
 
-// /bucket/{bucket}?prefix=...&max=200&token=...
+// /bucket/{bucket}?prefix=...&token=...&prev=...
 func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, "/bucket/")
 	if p == "" || strings.Contains(p, "/") {
@@ -104,14 +106,14 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	bucket := p
 
 	prefix := r.URL.Query().Get("prefix")
-	maxKeys := parseIntClamp(r.URL.Query().Get("max"), 200, 1, 1000)
 	token := r.URL.Query().Get("token")
+	prevTokens := append([]string(nil), r.URL.Query()["prev"]...)
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
 		Prefix:            aws.String(prefix),
 		Delimiter:         aws.String("/"),
-		MaxKeys:           aws.Int32(int32(maxKeys)),
+		MaxKeys:           aws.Int32(bucketPageSize),
 		ContinuationToken: optionalString(token),
 	})
 	if err != nil {
@@ -162,6 +164,28 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		nextToken = aws.ToString(out.NextContinuationToken)
 	}
 
+	hasPrev := token != ""
+	prevPageURL := ""
+	if hasPrev {
+		prevToken := ""
+		prevHistory := []string{}
+		if len(prevTokens) > 0 {
+			prevToken = prevTokens[len(prevTokens)-1]
+			prevHistory = prevTokens[:len(prevTokens)-1]
+		}
+		prevPageURL = bucketBrowseURL(bucket, prefix, prevToken, prevHistory)
+	}
+
+	hasNext := nextToken != ""
+	nextPageURL := ""
+	if hasNext {
+		nextHistory := append([]string(nil), prevTokens...)
+		if token != "" {
+			nextHistory = append(nextHistory, token)
+		}
+		nextPageURL = bucketBrowseURL(bucket, prefix, nextToken, nextHistory)
+	}
+
 	a.render(w, "bucket", map[string]any{
 		"Title":           "Browse bucket",
 		"Bucket":          bucket,
@@ -173,9 +197,10 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"Folders": folders,
 		"Objects": objects,
 
-		"MaxKeys":     maxKeys,
-		"HasNext":     nextToken != "",
-		"NextPageURL": nextPageURL(bucket, prefix, maxKeys, nextToken),
+		"HasPrev":     hasPrev,
+		"PrevPageURL": prevPageURL,
+		"HasNext":     hasNext,
+		"NextPageURL": nextPageURL,
 
 		"UploadAction":     "/upload",
 		"DeleteBucketPOST": "/bucket/delete",

@@ -92,11 +92,17 @@ func breadcrumbs(bucket, prefix string) []crumb {
 	return out
 }
 
-func nextPageURL(bucket, prefix string, maxKeys int, token string) string {
+func bucketBrowseURL(bucket, prefix, token string, prevTokens []string) string {
 	q := url.Values{}
 	q.Set("prefix", prefix)
-	q.Set("max", strconv.Itoa(maxKeys))
-	q.Set("token", token)
+	if strings.TrimSpace(token) != "" {
+		q.Set("token", token)
+	}
+	for _, t := range prevTokens {
+		if strings.TrimSpace(t) != "" {
+			q.Add("prev", t)
+		}
+	}
 	return fmt.Sprintf("/bucket/%s?%s", url.PathEscape(bucket), q.Encode())
 }
 

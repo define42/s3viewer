@@ -232,9 +232,14 @@ const htmlTemplates = `
       </tbody>
     </table>
 
-    {{if .HasNext}}
-      <p><a class="btn" href="{{.NextPageURL}}">Next page →</a></p>
-    {{end}}
+    <div class="row" style="margin-top:12px;">
+      {{if .HasPrev}}
+        <a class="btn" href="{{.PrevPageURL}}">← Prev page</a>
+      {{end}}
+      {{if .HasNext}}
+        <a class="btn" href="{{.NextPageURL}}">Next page →</a>
+      {{end}}
+    </div>
   </div>
 {{template "layout-end" .}}
 {{end}}
