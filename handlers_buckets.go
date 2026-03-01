@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -124,6 +125,10 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	type prefixRow struct{ Name, URL string }
 	type objRow struct {
 		Key, Size, LastModified, ETag, DetailsURL, DownloadURL string
+		Metadata                                               []kv
+		Tags                                                   []kv
+		MetadataError                                          string
+		TagError                                               string
 	}
 
 	crumbs := breadcrumbs(bucket, prefix)
@@ -148,13 +153,44 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		metadata := []kv(nil)
+		tags := []kv(nil)
+		metadataErrStr := ""
+		tagErrStr := ""
+
+		head, headErr := s3Client.HeadObject(r.Context(), &s3.HeadObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
+		if headErr == nil {
+			metadata = mapToKVs(head.Metadata)
+		} else {
+			metadataErrStr = "unavailable"
+			log.Printf("HeadObject failed for %s/%s (non-fatal): %v", bucket, key, headErr)
+		}
+
+		tagOut, tagErr := s3Client.GetObjectTagging(r.Context(), &s3.GetObjectTaggingInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
+		if tagErr == nil {
+			tags = tagsToKVs(tagOut.TagSet)
+		} else {
+			tagErrStr = "unavailable"
+			log.Printf("GetObjectTagging failed for %s/%s (non-fatal): %v", bucket, key, tagErr)
+		}
+
 		objects = append(objects, objRow{
-			Key:          key,
-			Size:         humanBytes(aws.ToInt64(o.Size)),
-			LastModified: timeStr(o.LastModified),
-			ETag:         strings.Trim(aws.ToString(o.ETag), `"`),
-			DetailsURL:   fmt.Sprintf("/object/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
-			DownloadURL:  fmt.Sprintf("/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+			Key:           key,
+			Size:          humanBytes(aws.ToInt64(o.Size)),
+			LastModified:  timeStr(o.LastModified),
+			ETag:          strings.Trim(aws.ToString(o.ETag), `"`),
+			DetailsURL:    fmt.Sprintf("/object/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+			DownloadURL:   fmt.Sprintf("/download/%s/%s", url.PathEscape(bucket), url.PathEscape(key)),
+			Metadata:      metadata,
+			Tags:          tags,
+			MetadataError: metadataErrStr,
+			TagError:      tagErrStr,
 		})
 	}
 	sort.Slice(objects, func(i, j int) bool { return objects[i].Key < objects[j].Key })

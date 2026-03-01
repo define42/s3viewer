@@ -219,13 +219,35 @@ const htmlTemplates = `
     <h4>Objects</h4>
     {{if not .Objects}}<div class="muted">No objects.</div>{{end}}
     <table>
-      <thead><tr><th>Key</th><th>Size</th><th>Last modified</th><th></th></tr></thead>
+      <thead><tr><th>Key</th><th>Size</th><th>Last modified</th><th>Metadata</th><th>Tags</th><th></th></tr></thead>
       <tbody>
         {{range .Objects}}
           <tr>
             <td><a href="{{.DetailsURL}}"><code>{{.Key}}</code></a></td>
             <td>{{.Size}}</td>
             <td class="muted">{{.LastModified}}</td>
+            <td>
+              {{if hasErr .MetadataError}}
+                <span class="muted">{{.MetadataError}}</span>
+              {{else if not .Metadata}}
+                <span class="muted">None</span>
+              {{else}}
+                {{range .Metadata}}
+                  <div><code>{{.K}}</code>=<code>{{.V}}</code></div>
+                {{end}}
+              {{end}}
+            </td>
+            <td>
+              {{if hasErr .TagError}}
+                <span class="muted">{{.TagError}}</span>
+              {{else if not .Tags}}
+                <span class="muted">None</span>
+              {{else}}
+                {{range .Tags}}
+                  <div><code>{{.K}}</code>=<code>{{.V}}</code></div>
+                {{end}}
+              {{end}}
+            </td>
             <td><a class="btn" href="{{.DownloadURL}}">Download</a></td>
           </tr>
         {{end}}
