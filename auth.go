@@ -166,6 +166,7 @@ func (a *app) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 		if err := r.ParseForm(); err != nil {
 			a.renderLogin(w, "", "invalid form data")
 			return

@@ -71,6 +71,7 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -166,7 +167,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			metadata = mapToKVs(head.Metadata)
 		} else {
 			metadataErrStr = "unavailable"
-			log.Printf("HeadObject failed for %s/%s (non-fatal): %v", bucket, key, headErr)
+			log.Printf("HeadObject failed in bucket browse (non-fatal): %v", headErr)
 		}
 
 		tagOut, tagErr := s3Client.GetObjectTagging(r.Context(), &s3.GetObjectTaggingInput{
@@ -177,7 +178,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			tags = tagsToKVs(tagOut.TagSet)
 		} else {
 			tagErrStr = "unavailable"
-			log.Printf("GetObjectTagging failed for %s/%s (non-fatal): %v", bucket, key, tagErr)
+			log.Printf("GetObjectTagging failed in bucket browse (non-fatal): %v", tagErr)
 		}
 
 		objects = append(objects, objRow{

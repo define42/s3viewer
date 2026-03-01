@@ -24,6 +24,7 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -236,6 +237,7 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return
@@ -269,6 +271,7 @@ func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
 		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
 		return

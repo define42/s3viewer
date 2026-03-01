@@ -12,6 +12,10 @@ import (
 
 // ---------------- Helpers ----------------
 
+const (
+	maxFormBodyBytes int64 = 1 << 20 // 1 MiB
+)
+
 func optionalString(s string) *string {
 	if strings.TrimSpace(s) == "" {
 		return nil
