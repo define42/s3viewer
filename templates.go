@@ -59,24 +59,47 @@ const htmlTemplates = `
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Title}}</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    :root {
+      color-scheme: dark;
+      --bg: #0f1117;
+      --surface: #161b22;
+      --surface-alt: #1d2531;
+      --text: #e6edf3;
+      --muted: #98a3b3;
+      --border: #2b3545;
+      --link: #7cc4ff;
+      --code-bg: #202938;
+      --btn-bg: #1d2533;
+      --btn-bg-hover: #263246;
+      --warn-border: #7a6231;
+      --warn-bg: #332912;
+      --danger: #ef6b6b;
+    }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 24px;
+      background: var(--bg);
+      color: var(--text);
+    }
     .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
     .topbar-right { display: flex; align-items: center; gap: 12px; }
-    a { text-decoration: none; }
+    a { text-decoration: none; color: var(--link); }
     a:hover { text-decoration: underline; }
-    .muted { color: #666; }
+    .muted { color: var(--muted); }
     .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin: 12px 0; }
+    .card { border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin: 12px 0; background: var(--surface); }
     table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; vertical-align: top; }
-    th { background: #fafafa; }
-    code { background: #f5f5f5; padding: 2px 4px; border-radius: 4px; }
-    .btn { display:inline-block; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; background: #fff; cursor: pointer;}
-    input[type="text"]{ padding:8px; border:1px solid #ddd; border-radius: 8px; min-width: 280px;}
-    input[type="password"]{ padding:8px; border:1px solid #ddd; border-radius: 8px; min-width: 280px;}
-    input[type="file"]{ padding:6px; }
-    .danger { border-color:#f1c3c3; }
-    .warn { border: 1px solid #f0d7a1; background: #fff8e6; padding: 10px; border-radius: 10px; }
+    th, td { border-bottom: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: top; }
+    th { background: var(--surface-alt); }
+    code { background: var(--code-bg); color: var(--text); padding: 2px 4px; border-radius: 4px; }
+    .btn { display:inline-block; padding: 8px 10px; border:1px solid var(--border); border-radius: 8px; background: var(--btn-bg); color: var(--text); cursor: pointer;}
+    .btn:hover { background: var(--btn-bg-hover); text-decoration: none; }
+    input[type="text"]{ padding:8px; border:1px solid var(--border); border-radius: 8px; min-width: 280px; background: var(--surface-alt); color: var(--text);}
+    input[type="password"]{ padding:8px; border:1px solid var(--border); border-radius: 8px; min-width: 280px; background: var(--surface-alt); color: var(--text);}
+    input[type="file"]{ padding:6px; color: var(--text); }
+    .danger { border-color: var(--danger); color: #ffd1d1; }
+    .warn { border: 1px solid var(--warn-border); background: var(--warn-bg); padding: 10px; border-radius: 10px; }
+    hr { border: 0; border-top: 1px solid var(--border); }
   </style>
 </head>
 <body>
