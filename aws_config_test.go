@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"testing"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 func TestLoadAWSConfigWithStaticCredentialsRequiresKeys(t *testing.T) {
@@ -59,6 +61,32 @@ func TestNewS3ClientRequiresKeys(t *testing.T) {
 	_, err := newS3Client(context.Background(), "us-east-1", "", true, "", "", "", false, false)
 	if err == nil {
 		t.Fatalf("expected error when creating client without credentials")
+	}
+}
+
+func TestLoadAWSConfigWithS3Debug(t *testing.T) {
+	t.Setenv("S3_DEBUG", "true")
+	cfg, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "", "ak", "sk", "", false, false)
+	if err != nil {
+		t.Fatalf("expected config load success, got error: %v", err)
+	}
+	if cfg.Logger == nil {
+		t.Fatal("expected Logger to be set when S3_DEBUG=true")
+	}
+	expectedMode := aws.LogRetries | aws.LogRequest | aws.LogResponse
+	if cfg.ClientLogMode != expectedMode {
+		t.Fatalf("expected ClientLogMode %v, got %v", expectedMode, cfg.ClientLogMode)
+	}
+}
+
+func TestLoadAWSConfigWithoutS3Debug(t *testing.T) {
+	t.Setenv("S3_DEBUG", "")
+	cfg, err := loadAWSConfigWithStaticCredentials(context.Background(), "us-east-1", "", "ak", "sk", "", false, false)
+	if err != nil {
+		t.Fatalf("expected config load success, got error: %v", err)
+	}
+	if cfg.ClientLogMode != 0 {
+		t.Fatalf("expected ClientLogMode to be 0, got %v", cfg.ClientLogMode)
 	}
 }
 

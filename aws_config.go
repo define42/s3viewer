@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/logging"
 )
 
 func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, accessKey, secretKey, sessionToken string, endpointSkipTls bool, useRgwToken bool) (aws.Config, error) {
@@ -48,6 +49,11 @@ func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, a
 	awsCfg, err := config.LoadDefaultConfig(ctx, optFns...)
 	if err != nil {
 		return aws.Config{}, err
+	}
+
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("S3_DEBUG")), "true") {
+		awsCfg.Logger = logging.NewStandardLogger(os.Stderr)
+		awsCfg.ClientLogMode = aws.LogRetries | aws.LogRequest | aws.LogResponse
 	}
 
 	if endpoint != "" {
