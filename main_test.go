@@ -213,3 +213,62 @@ func TestMain(t *testing.T) {
 		t.Fatalf("expected main to attempt server startup")
 	}
 }
+
+func TestCheckEndpointEmpty(t *testing.T) {
+	if err := checkEndpoint("", false); err != nil {
+		t.Fatalf("expected no error for empty endpoint, got: %v", err)
+	}
+}
+
+func TestCheckEndpointReachable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+
+	if err := checkEndpoint(srv.URL, false); err != nil {
+		t.Fatalf("expected no error for reachable endpoint, got: %v", err)
+	}
+}
+
+func TestCheckEndpointUnreachable(t *testing.T) {
+	err := checkEndpoint("http://127.0.0.1:19999", false)
+	if err == nil {
+		t.Fatal("expected error for unreachable endpoint, got nil")
+	}
+}
+
+func TestCheckEndpointTLSValidationFails(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+
+	// Without skipTLS the self-signed cert should cause a TLS error.
+	err := checkEndpoint(srv.URL, false)
+	if err == nil {
+		t.Fatal("expected TLS error for self-signed cert, got nil")
+	}
+}
+
+func TestCheckEndpointTLSSkip(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer srv.Close()
+
+	// With skipTLS=true the self-signed cert should be accepted.
+	if err := checkEndpoint(srv.URL, true); err != nil {
+		t.Fatalf("expected no error with skipTLS=true, got: %v", err)
+	}
+}
+
+func TestRunServerEndpointCheckFailure(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
+	t.Setenv("LISTEN_ADDR", ":9093")
+	t.Setenv("SECURECOOKIE_HASH_KEY", "0123456789abcdef0123456789abcdef")
+	t.Setenv("SECURECOOKIE_BLOCK_KEY", "abcdef0123456789abcdef0123456789")
+	t.Setenv("AWS_ENDPOINT_URL", "http://127.0.0.1:19999")
+
+	original := startHTTPServer
+	t.Cleanup(func() { startHTTPServer = original })
+	startHTTPServer = func(srv *http.Server) error { return nil }
+
+	if err := runServer(); err == nil {
+		t.Fatal("expected runServer to fail when endpoint is unreachable")
+	}
+}

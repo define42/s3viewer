@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -38,10 +39,34 @@ var startHTTPServer = func(srv *http.Server) error {
 	return srv.ListenAndServe()
 }
 
+var checkEndpoint = func(endpoint string, skipTLS bool) error {
+	if endpoint == "" {
+		return nil
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	if skipTLS {
+		if tr.TLSClientConfig == nil {
+			tr.TLSClientConfig = &tls.Config{}
+		}
+		tr.TLSClientConfig.InsecureSkipVerify = true // #nosec G402 -- only when explicitly requested
+	}
+	client := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+	resp, err := client.Head(endpoint)
+	if err != nil {
+		return fmt.Errorf("endpoint health check failed for %q: %w", endpoint, err)
+	}
+	resp.Body.Close()
+	return nil
+}
+
 func runServer() error {
 	a, mux, listen, err := buildAppAndMuxFromEnv()
 	if err != nil {
 		return fmt.Errorf("startup failed: %w", err)
+	}
+
+	if err := checkEndpoint(a.endpoint, a.endpointSkipTls); err != nil {
+		return err
 	}
 
 	srv := &http.Server{
