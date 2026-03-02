@@ -11,7 +11,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/gorilla/mux"
 )
 
@@ -33,12 +32,6 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	in := &s3.CreateBucketInput{Bucket: aws.String(bucket)}
-	// AWS: for regions != us-east-1, you typically need LocationConstraint
-	if a.region != "us-east-1" {
-		in.CreateBucketConfiguration = &types.CreateBucketConfiguration{
-			LocationConstraint: types.BucketLocationConstraint(a.region),
-		}
-	}
 
 	_, err := s3Client.CreateBucket(r.Context(), in)
 	if err != nil {

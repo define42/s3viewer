@@ -238,12 +238,11 @@ func TestHandleUploadNonFilePartAndS3Error(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// handlers_write.go: handleCreateBucket – non-us-east-1 region + S3 error
+// handlers_write.go: handleCreateBucket – S3 error
 // ---------------------------------------------------------------------------
 
 func TestHandleCreateBucketS3Error(t *testing.T) {
 	a := newAuthUnitTestApp()
-	a.region = "eu-west-1" // triggers the LocationConstraint branch
 
 	req := httptest.NewRequest(http.MethodPost, "/bucket/create/new-bucket", nil)
 	req = mux.SetURLVars(req, map[string]string{"bucket": "new-bucket"})
