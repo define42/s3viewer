@@ -29,6 +29,11 @@ func isNoSuchLifecycleConfigurationError(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration"
 }
 
+func isNoSuchBucketPolicyError(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucketPolicy"
+}
+
 // ---------------- Index (buckets + forms) ----------------
 
 func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -193,6 +198,18 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("GetBucketLifecycleConfiguration failed in bucket browse", "bucket", bucket, "error", lcErr)
 	}
 
+	bucketPolicy := ""
+	bucketPolicyError := ""
+	policyOut, policyErr := s3Client.GetBucketPolicy(r.Context(), &s3.GetBucketPolicyInput{
+		Bucket: aws.String(bucket),
+	})
+	if policyErr == nil {
+		bucketPolicy = aws.ToString(policyOut.Policy)
+	} else if !isNoSuchBucketPolicyError(policyErr) {
+		bucketPolicyError = "unavailable"
+		slog.Warn("GetBucketPolicy failed in bucket browse", "bucket", bucket, "error", policyErr)
+	}
+
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
 		Prefix:            aws.String(listPrefix),
@@ -335,5 +352,8 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 		"LifecycleRules": lifecycleRules,
 		"LifecycleError": lifecycleError,
+
+		"BucketPolicy":      bucketPolicy,
+		"BucketPolicyError": bucketPolicyError,
 	})
 }

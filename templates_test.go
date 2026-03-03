@@ -117,6 +117,122 @@ func TestRenderBucketIncludesPrefixSearch(t *testing.T) {
 	}
 }
 
+func TestRenderBucketPolicy(t *testing.T) {
+	a := newAuthUnitTestApp()
+
+	// Test with a policy present
+	rec := httptest.NewRecorder()
+	policy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":"*","Action":"s3:GetObject","Resource":"arn:aws:s3:::my-bucket/*"}]}`
+	a.render(rec, "bucket", map[string]any{
+		"Title":             "Browse bucket",
+		"Bucket":            "my-bucket",
+		"Prefix":            "",
+		"Search":            "",
+		"BrowseAction":      "/bucket/view/my-bucket",
+		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
+		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"BucketTags":        []kv{},
+		"BucketTagError":    "",
+		"UpPrefix":          "",
+		"Folders":           []any{},
+		"Objects":           []any{},
+		"HasPrev":           false,
+		"PrevPageURL":       "",
+		"HasNext":           false,
+		"NextPageURL":       "",
+		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
+		"IsAuthenticated":   true,
+		"LifecycleRules":    []any{},
+		"LifecycleError":    "",
+		"BucketPolicy":      policy,
+		"BucketPolicyError": "",
+	})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Bucket policy") {
+		t.Fatalf("expected bucket policy section in bucket template")
+	}
+	if !strings.Contains(body, "s3:GetObject") {
+		t.Fatalf("expected policy content in bucket template")
+	}
+
+	// Test with no policy
+	rec2 := httptest.NewRecorder()
+	a.render(rec2, "bucket", map[string]any{
+		"Title":             "Browse bucket",
+		"Bucket":            "my-bucket",
+		"Prefix":            "",
+		"Search":            "",
+		"BrowseAction":      "/bucket/view/my-bucket",
+		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
+		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"BucketTags":        []kv{},
+		"BucketTagError":    "",
+		"UpPrefix":          "",
+		"Folders":           []any{},
+		"Objects":           []any{},
+		"HasPrev":           false,
+		"PrevPageURL":       "",
+		"HasNext":           false,
+		"NextPageURL":       "",
+		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
+		"IsAuthenticated":   true,
+		"LifecycleRules":    []any{},
+		"LifecycleError":    "",
+		"BucketPolicy":      "",
+		"BucketPolicyError": "",
+	})
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec2.Code)
+	}
+	body2 := rec2.Body.String()
+	if !strings.Contains(body2, "No bucket policy.") {
+		t.Fatalf("expected 'No bucket policy.' when policy is empty")
+	}
+
+	// Test with policy error
+	rec3 := httptest.NewRecorder()
+	a.render(rec3, "bucket", map[string]any{
+		"Title":             "Browse bucket",
+		"Bucket":            "my-bucket",
+		"Prefix":            "",
+		"Search":            "",
+		"BrowseAction":      "/bucket/view/my-bucket",
+		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
+		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"BucketTags":        []kv{},
+		"BucketTagError":    "",
+		"UpPrefix":          "",
+		"Folders":           []any{},
+		"Objects":           []any{},
+		"HasPrev":           false,
+		"PrevPageURL":       "",
+		"HasNext":           false,
+		"NextPageURL":       "",
+		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
+		"IsAuthenticated":   true,
+		"LifecycleRules":    []any{},
+		"LifecycleError":    "",
+		"BucketPolicy":      "",
+		"BucketPolicyError": "unavailable",
+	})
+
+	if rec3.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec3.Code)
+	}
+	body3 := rec3.Body.String()
+	if !strings.Contains(body3, "unavailable") {
+		t.Fatalf("expected error message when policy is unavailable")
+	}
+}
+
 func TestRenderBucketLifecycleConfiguration(t *testing.T) {
 	type lifecycleRuleRow struct {
 		ID          string

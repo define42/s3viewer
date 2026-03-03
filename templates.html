@@ -295,6 +295,17 @@
   </div>
 
   <div class="card">
+    <h4 style="margin-top:0;">Bucket policy</h4>
+    {{if hasErr .BucketPolicyError}}
+      <div class="muted">{{.BucketPolicyError}}</div>
+    {{else if not .BucketPolicy}}
+      <div class="muted">No bucket policy.</div>
+    {{else}}
+      <pre style="white-space:pre-wrap;overflow-x:auto;"><code>{{.BucketPolicy}}</code></pre>
+    {{end}}
+  </div>
+
+  <div class="card">
     <h4>Folders</h4>
     {{if not .Folders}}<div class="muted">No folders.</div>{{end}}
     <ul>
