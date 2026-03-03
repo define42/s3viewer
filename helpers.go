@@ -62,43 +62,8 @@ func humanBytes(n int64) string {
 	return fmt.Sprintf("%.2f %s", value, suffix)
 }
 
-func parentPrefix(pfx string) string {
-	if pfx == "" {
-		return ""
-	}
-	trim := strings.TrimSuffix(pfx, "/")
-	i := strings.LastIndex(trim, "/")
-	if i < 0 {
-		return ""
-	}
-	return trim[:i+1]
-}
-
-type crumb struct {
-	Name string
-	URL  string
-}
-
-func breadcrumbs(bucket, prefix string) []crumb {
-	out := []crumb{{Name: bucket, URL: fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket))}}
-	if prefix == "" {
-		return out
-	}
-	parts := strings.Split(strings.TrimSuffix(prefix, "/"), "/")
-	cur := ""
-	for _, p := range parts {
-		cur += p + "/"
-		out = append(out, crumb{
-			Name: p,
-			URL:  fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(cur)),
-		})
-	}
-	return out
-}
-
-func bucketBrowseURL(bucket, prefix, search, token string, prevTokens []string) string {
+func bucketBrowseURL(bucket, search, token string, prevTokens []string) string {
 	q := url.Values{}
-	q.Set("prefix", prefix)
 	if strings.TrimSpace(search) != "" {
 		q.Set("search", search)
 	}
@@ -109,6 +74,9 @@ func bucketBrowseURL(bucket, prefix, search, token string, prevTokens []string) 
 		if strings.TrimSpace(t) != "" {
 			q.Add("prev", t)
 		}
+	}
+	if len(q) == 0 {
+		return fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket))
 	}
 	return fmt.Sprintf("/bucket/view/%s?%s", url.PathEscape(bucket), q.Encode())
 }

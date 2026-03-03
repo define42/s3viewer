@@ -77,6 +77,7 @@ func TestHandleBucketBrowseS3Error(t *testing.T) {
 	a := newAuthUnitTestApp()
 
 	req := httptest.NewRequest(http.MethodGet, "/bucket/view/test-bucket", nil)
+	req = mux.SetURLVars(req, map[string]string{"bucket": "test-bucket"})
 	addSessionCookieToRequest(t, a, req)
 
 	rec := httptest.NewRecorder()

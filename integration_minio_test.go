@@ -106,7 +106,7 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	requireStatus(t, uploadResp, http.StatusSeeOther)
 	discardAndClose(t, uploadResp)
 
-	browseURL := fmt.Sprintf("%s/bucket/view/%s?prefix=", srv.URL, url.PathEscape(bucket))
+	browseURL := fmt.Sprintf("%s/bucket/view/%s", srv.URL, url.PathEscape(bucket))
 	browseResp, err := client.Get(browseURL)
 	if err != nil {
 		t.Fatalf("browse bucket request failed: %v", err)
@@ -247,16 +247,24 @@ func TestIntegrationMinIONestedKeyUploadFetchAndDelete(t *testing.T) {
 	requireStatus(t, createResp, http.StatusSeeOther)
 	discardAndClose(t, createResp)
 
-	const objectKey = "/a/c/d.txt"
-
-	// The upload handler builds the S3 key as prefix+filename. To get the key
-	// "/a/c/d.txt" we pass prefix="/a/c/" via query param and filename "d.txt".
-	uploadURL := fmt.Sprintf("%s/object/upload/%s?prefix=%s", srv.URL, url.PathEscape(bucket), url.QueryEscape("/a/c/"))
+	const (
+		initialKey = "d.txt"
+		objectKey  = "a/c/d.txt"
+	)
+	uploadURL := fmt.Sprintf("%s/object/upload/%s", srv.URL, url.PathEscape(bucket))
 	uploadResp := postMultipartUpload(t, client, uploadURL, nil, []testUploadFile{
-		{Filename: "d.txt", Contents: "nested content"},
+		{Filename: initialKey, Contents: "nested content"},
 	})
 	requireStatus(t, uploadResp, http.StatusSeeOther)
 	discardAndClose(t, uploadResp)
+
+	renameResp := postForm(t, client, srv.URL+"/object/rename/"+url.PathEscape(bucket)+"/"+url.PathEscape(initialKey), url.Values{
+		"bucket":  {bucket},
+		"key":     {initialKey},
+		"new_key": {objectKey},
+	})
+	requireStatus(t, renameResp, http.StatusSeeOther)
+	discardAndClose(t, renameResp)
 
 	objectURL := fmt.Sprintf("%s/object/view/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape(objectKey))
 	objectResp, err := client.Get(objectURL)

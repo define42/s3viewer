@@ -16,13 +16,6 @@ var htmlTemplatesFS embed.FS
 
 func newTemplates() *template.Template {
 	funcs := template.FuncMap{
-		"sub1": func(i int) int { return i - 1 },
-		"lenCrumbs": func(v any) int {
-			if c, ok := v.([]crumb); ok {
-				return len(c)
-			}
-			return 0
-		},
 		"hasErr": func(v any) bool {
 			s, ok := v.(string)
 			if !ok {

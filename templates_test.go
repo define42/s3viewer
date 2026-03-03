@@ -72,27 +72,23 @@ func TestRenderError(t *testing.T) {
 	}
 }
 
-func TestRenderBucketIncludesPrefixSearch(t *testing.T) {
+func TestRenderBucketIncludesSearch(t *testing.T) {
 	a := newAuthUnitTestApp()
 	rec := httptest.NewRecorder()
 	a.render(rec, "bucket", map[string]any{
 		"Title":            "Browse bucket",
 		"Bucket":           "my-bucket",
-		"Prefix":           "logs/",
 		"Search":           "who",
 		"BrowseAction":     "/bucket/view/my-bucket",
-		"ClearSearchURL":   "/bucket/view/my-bucket?prefix=logs%2F",
-		"Crumbs":           []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"ClearSearchURL":   "/bucket/view/my-bucket",
 		"BucketTags":       []kv{},
 		"BucketTagError":   "",
-		"UpPrefix":         "",
-		"Folders":          []any{},
 		"Objects":          []any{},
 		"HasPrev":          false,
 		"PrevPageURL":      "",
 		"HasNext":          false,
 		"NextPageURL":      "",
-		"UploadAction":     "/object/upload/my-bucket?prefix=logs%2F",
+		"UploadAction":     "/object/upload/my-bucket",
 		"DeleteBucketPOST": "/bucket/delete/my-bucket",
 		"IsAuthenticated":  true,
 		"LifecycleRules":   []any{},
@@ -103,17 +99,14 @@ func TestRenderBucketIncludesPrefixSearch(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Prefix search:") {
-		t.Fatalf("expected prefix search label in bucket template")
+	if !strings.Contains(body, "Search:") {
+		t.Fatalf("expected search label in bucket template")
 	}
 	if !strings.Contains(body, `name="search"`) {
 		t.Fatalf("expected search input in bucket template")
 	}
-	if !strings.Contains(body, `type="hidden" name="prefix"`) {
-		t.Fatalf("expected hidden prefix input in bucket template")
-	}
 	if !strings.Contains(body, `action="/bucket/view/my-bucket"`) {
-		t.Fatalf("expected prefix search action in bucket template")
+		t.Fatalf("expected search action in bucket template")
 	}
 }
 
@@ -126,21 +119,17 @@ func TestRenderBucketPolicy(t *testing.T) {
 	a.render(rec, "bucket", map[string]any{
 		"Title":             "Browse bucket",
 		"Bucket":            "my-bucket",
-		"Prefix":            "",
 		"Search":            "",
 		"BrowseAction":      "/bucket/view/my-bucket",
-		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
-		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"ClearSearchURL":    "/bucket/view/my-bucket",
 		"BucketTags":        []kv{},
 		"BucketTagError":    "",
-		"UpPrefix":          "",
-		"Folders":           []any{},
 		"Objects":           []any{},
 		"HasPrev":           false,
 		"PrevPageURL":       "",
 		"HasNext":           false,
 		"NextPageURL":       "",
-		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"UploadAction":      "/object/upload/my-bucket",
 		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
 		"IsAuthenticated":   true,
 		"LifecycleRules":    []any{},
@@ -165,21 +154,17 @@ func TestRenderBucketPolicy(t *testing.T) {
 	a.render(rec2, "bucket", map[string]any{
 		"Title":             "Browse bucket",
 		"Bucket":            "my-bucket",
-		"Prefix":            "",
 		"Search":            "",
 		"BrowseAction":      "/bucket/view/my-bucket",
-		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
-		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"ClearSearchURL":    "/bucket/view/my-bucket",
 		"BucketTags":        []kv{},
 		"BucketTagError":    "",
-		"UpPrefix":          "",
-		"Folders":           []any{},
 		"Objects":           []any{},
 		"HasPrev":           false,
 		"PrevPageURL":       "",
 		"HasNext":           false,
 		"NextPageURL":       "",
-		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"UploadAction":      "/object/upload/my-bucket",
 		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
 		"IsAuthenticated":   true,
 		"LifecycleRules":    []any{},
@@ -201,21 +186,17 @@ func TestRenderBucketPolicy(t *testing.T) {
 	a.render(rec3, "bucket", map[string]any{
 		"Title":             "Browse bucket",
 		"Bucket":            "my-bucket",
-		"Prefix":            "",
 		"Search":            "",
 		"BrowseAction":      "/bucket/view/my-bucket",
-		"ClearSearchURL":    "/bucket/view/my-bucket?prefix=",
-		"Crumbs":            []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"ClearSearchURL":    "/bucket/view/my-bucket",
 		"BucketTags":        []kv{},
 		"BucketTagError":    "",
-		"UpPrefix":          "",
-		"Folders":           []any{},
 		"Objects":           []any{},
 		"HasPrev":           false,
 		"PrevPageURL":       "",
 		"HasNext":           false,
 		"NextPageURL":       "",
-		"UploadAction":      "/object/upload/my-bucket?prefix=",
+		"UploadAction":      "/object/upload/my-bucket",
 		"DeleteBucketPOST":  "/bucket/delete/my-bucket",
 		"IsAuthenticated":   true,
 		"LifecycleRules":    []any{},
@@ -248,21 +229,17 @@ func TestRenderBucketLifecycleConfiguration(t *testing.T) {
 	a.render(rec, "bucket", map[string]any{
 		"Title":            "Browse bucket",
 		"Bucket":           "my-bucket",
-		"Prefix":           "",
 		"Search":           "",
 		"BrowseAction":     "/bucket/view/my-bucket",
-		"ClearSearchURL":   "/bucket/view/my-bucket?prefix=",
-		"Crumbs":           []crumb{{Name: "my-bucket", URL: "/bucket/view/my-bucket?prefix="}},
+		"ClearSearchURL":   "/bucket/view/my-bucket",
 		"BucketTags":       []kv{},
 		"BucketTagError":   "",
-		"UpPrefix":         "",
-		"Folders":          []any{},
 		"Objects":          []any{},
 		"HasPrev":          false,
 		"PrevPageURL":      "",
 		"HasNext":          false,
 		"NextPageURL":      "",
-		"UploadAction":     "/object/upload/my-bucket?prefix=",
+		"UploadAction":     "/object/upload/my-bucket",
 		"DeleteBucketPOST": "/bucket/delete/my-bucket",
 		"IsAuthenticated":  true,
 		"LifecycleRules": []lifecycleRuleRow{
@@ -296,5 +273,37 @@ func TestRenderBucketLifecycleConfiguration(t *testing.T) {
 	}
 	if !strings.Contains(body, "7 days") {
 		t.Fatalf("expected abort days in lifecycle rule row")
+	}
+}
+
+func TestRenderObjectRenameHasNoPrefixInput(t *testing.T) {
+	a := newAuthUnitTestApp()
+	rec := httptest.NewRecorder()
+	a.render(rec, "object", map[string]any{
+		"Title":            "Object details",
+		"Bucket":           "my-bucket",
+		"Key":              "logs/app.txt",
+		"Size":             "1 B",
+		"ContentType":      "text/plain",
+		"LastModified":     "2026-01-01T00:00:00Z",
+		"ETag":             "abc123",
+		"StorageClass":     "STANDARD",
+		"IsAuthenticated":  true,
+		"BackURL":          "/bucket/view/my-bucket",
+		"DownloadURL":      "/object/download/my-bucket/logs%2Fapp.txt",
+		"DeleteObjectPOST": "/object/delete/my-bucket/logs%2Fapp.txt",
+		"RenameObjectPOST": "/object/rename/my-bucket/logs%2Fapp.txt",
+		"UserMetadata":     []kv{},
+		"SystemMetadata":   []kv{},
+		"Tags":             []kv{},
+		"TagError":         "",
+	})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if strings.Contains(body, `name="prefix"`) {
+		t.Fatalf("did not expect prefix input in rename form")
 	}
 }

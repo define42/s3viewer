@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"path"
 	"sort"
 	"strconv"
 	"strings"
@@ -68,7 +67,7 @@ func (a *app) handleIndex(w http.ResponseWriter, r *http.Request) {
 		rows = append(rows, bucketRow{
 			Name:         name,
 			CreationDate: cd,
-			BrowseURL:    fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(name)),
+			BrowseURL:    fmt.Sprintf("/bucket/view/%s", url.PathEscape(name)),
 		})
 	}
 
@@ -107,12 +106,12 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 // ---------------- Bucket browse ----------------
 
-// /bucket/view/{bucket}?prefix=...&search=...&token=...&prev=...
+// /bucket/view/{bucket}?search=...&token=...&prev=...
 func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	p := strings.TrimPrefix(r.URL.Path, "/bucket/view/")
 	if p == "" || strings.Contains(p, "/") {
@@ -125,9 +124,8 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	}
 	bucket := p
 
-	prefix := r.URL.Query().Get("prefix")
 	search := r.URL.Query().Get("search")
-	listPrefix := prefix + search
+	listFilter := search
 	token := r.URL.Query().Get("token")
 	prevTokens := append([]string(nil), r.URL.Query()["prev"]...)
 
@@ -212,7 +210,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
-		Prefix:            aws.String(listPrefix),
+		Prefix:            aws.String(listFilter),
 		MaxKeys:           aws.Int32(bucketPageSize),
 		ContinuationToken: optionalString(token),
 	})
@@ -221,7 +219,6 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type prefixRow struct{ Name, URL string }
 	type objRow struct {
 		Key, Size, LastModified, ETag, DetailsURL, DownloadURL, DeleteURL string
 		Metadata                                                          []kv
@@ -230,28 +227,15 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		TagError                                                          string
 	}
 
-	crumbs := breadcrumbs(bucket, prefix)
-	upPrefix := parentPrefix(prefix)
 	browseAction := fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket))
-	clearSearchURL := bucketBrowseURL(bucket, prefix, "", "", nil)
-	upURL := bucketBrowseURL(bucket, upPrefix, "", "", nil)
-
-	folders := make([]prefixRow, 0, len(out.CommonPrefixes))
-	for _, cp := range out.CommonPrefixes {
-		pfx := aws.ToString(cp.Prefix)
-		folders = append(folders, prefixRow{
-			Name: strings.TrimSuffix(path.Base(pfx), "/") + "/",
-			URL:  bucketBrowseURL(bucket, pfx, "", "", nil),
-		})
-	}
-	sort.Slice(folders, func(i, j int) bool { return folders[i].Name < folders[j].Name })
+	clearSearchURL := bucketBrowseURL(bucket, "", "", nil)
 
 	objects := make([]objRow, 0, len(out.Contents))
 	for _, o := range out.Contents {
 		key := aws.ToString(o.Key)
 
-		// skip directory marker object that equals the prefix and ends with '/'
-		if key == listPrefix && strings.HasSuffix(key, "/") {
+		// skip directory marker object that equals the search filter and ends with '/'
+		if key == listFilter && strings.HasSuffix(key, "/") {
 			continue
 		}
 
@@ -312,7 +296,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 			prevToken = prevTokens[len(prevTokens)-1]
 			prevHistory = prevTokens[:len(prevTokens)-1]
 		}
-		prevPageURL = bucketBrowseURL(bucket, prefix, search, prevToken, prevHistory)
+		prevPageURL = bucketBrowseURL(bucket, search, prevToken, prevHistory)
 	}
 
 	hasNext := nextToken != ""
@@ -322,24 +306,19 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		if token != "" {
 			nextHistory = append(nextHistory, token)
 		}
-		nextPageURL = bucketBrowseURL(bucket, prefix, search, nextToken, nextHistory)
+		nextPageURL = bucketBrowseURL(bucket, search, nextToken, nextHistory)
 	}
 
 	a.render(w, "bucket", map[string]any{
 		"Title":           "Browse bucket",
 		"Bucket":          bucket,
-		"Prefix":          prefix,
 		"Search":          search,
 		"BrowseAction":    browseAction,
 		"ClearSearchURL":  clearSearchURL,
-		"Crumbs":          crumbs,
 		"BucketTags":      bucketTags,
 		"BucketTagError":  bucketTagError,
-		"UpPrefix":        upPrefix,
-		"UpURL":           upURL,
 		"IsAuthenticated": true,
 
-		"Folders": folders,
 		"Objects": objects,
 
 		"HasPrev":     hasPrev,
@@ -347,7 +326,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"HasNext":     hasNext,
 		"NextPageURL": nextPageURL,
 
-		"UploadAction":     fmt.Sprintf("/object/upload/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)),
+		"UploadAction":     fmt.Sprintf("/object/upload/%s", url.PathEscape(bucket)),
 		"DeleteBucketPOST": fmt.Sprintf("/bucket/delete/%s", url.PathEscape(bucket)),
 
 		"LifecycleRules": lifecycleRules,

@@ -39,7 +39,7 @@ func (a *app) handleCreateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=", url.PathEscape(bucket)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
@@ -57,8 +57,6 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bucket is required", http.StatusBadRequest)
 		return
 	}
-
-	prefix := r.URL.Query().Get("prefix")
 
 	reader, err := r.MultipartReader()
 	if err != nil {
@@ -108,7 +106,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 
 		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 			Bucket:      aws.String(bucket),
-			Key:         aws.String(prefix + filename),
+			Key:         aws.String(filename),
 			Body:        bytes.NewReader(buf.Bytes()),
 			ContentType: optionalString(contentType),
 		})
@@ -126,7 +124,7 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
@@ -166,8 +164,7 @@ func (a *app) handleDeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parent := parentPrefix(key)
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
@@ -227,8 +224,7 @@ func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parent := parentPrefix(newKey)
-	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(parent)), http.StatusSeeOther)
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
 func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {

@@ -154,24 +154,14 @@
 {{template "layout-start" .}}
   <div class="row">
     <h3 style="margin:0;">Bucket: <code>{{.Bucket}}</code></h3>
-    {{if .Prefix}}<span class="muted">Prefix: <code>{{.Prefix}}</code></span>{{end}}
     {{if .Search}}<span class="muted">Search: <code>{{.Search}}</code></span>{{end}}
   </div>
 
   <div class="card-row">
     <div class="card">
-      <div class="row">
-        <strong>Path:</strong>
-        {{ $n := lenCrumbs .Crumbs }}
-        {{range $i, $c := .Crumbs}}
-          <a href="{{$c.URL}}">{{$c.Name}}</a>{{if lt $i (sub1 $n)}} / {{end}}
-        {{end}}
-      </div>
-
       <form method="get" action="{{.BrowseAction}}" class="row" style="margin-top:10px;">
-        <strong>Prefix search:</strong>
-        <input type="hidden" name="prefix" value="{{.Prefix}}" />
-        <input type="text" name="search" value="{{.Search}}" placeholder="starts-with key prefix" />
+        <strong>Search:</strong>
+        <input type="text" name="search" value="{{.Search}}" placeholder="starts-with key" />
         <button class="btn" type="submit">Search</button>
         {{if .Search}}
           <a class="btn" href="{{.ClearSearchURL}}">Clear</a>
@@ -179,10 +169,6 @@
       </form>
 
       <div class="row" style="margin-top:12px;">
-        {{if .UpPrefix}}
-          <a class="btn" href="{{.UpURL}}">⬆ Up</a>
-        {{end}}
-
         <form method="post" action="{{.DeleteBucketPOST}}" onsubmit="return confirm('Delete bucket {{.Bucket}}? Bucket must be EMPTY.');">
           <input type="hidden" name="bucket" value="{{.Bucket}}" />
           <button class="btn danger" type="submit">Delete bucket</button>
@@ -306,14 +292,6 @@
   </div>
 
   <div class="card">
-    <h4>Folders</h4>
-    {{if not .Folders}}<div class="muted">No folders.</div>{{end}}
-    <ul>
-      {{range .Folders}}
-        <li><a href="{{.URL}}">{{.Name}}</a></li>
-      {{end}}
-    </ul>
-
     <h4>Objects</h4>
     {{if not .Objects}}<div class="muted">No objects.</div>{{end}}
     <table>

@@ -56,33 +56,8 @@ func TestHumanBytes(t *testing.T) {
 	}
 }
 
-func TestParentPrefix(t *testing.T) {
-	if got := parentPrefix(""); got != "" {
-		t.Fatalf("expected empty parent for empty prefix")
-	}
-	if got := parentPrefix("file.txt"); got != "" {
-		t.Fatalf("expected empty parent for top-level file")
-	}
-	if got := parentPrefix("a/b/c.txt"); got != "a/b/" {
-		t.Fatalf("expected a/b/, got %s", got)
-	}
-	if got := parentPrefix("a/b/c/"); got != "a/b/" {
-		t.Fatalf("expected a/b/, got %s", got)
-	}
-}
-
-func TestBreadcrumbs(t *testing.T) {
-	crumbs := breadcrumbs("my-bucket", "a/b/")
-	if len(crumbs) != 3 {
-		t.Fatalf("expected 3 breadcrumbs, got %d", len(crumbs))
-	}
-	if crumbs[0].Name != "my-bucket" || crumbs[1].Name != "a" || crumbs[2].Name != "b" {
-		t.Fatalf("unexpected breadcrumb names: %#v", crumbs)
-	}
-}
-
 func TestBucketBrowseURL(t *testing.T) {
-	url := bucketBrowseURL("my-bucket", "a/", "who", "tok123", []string{"p1", "p2"})
+	url := bucketBrowseURL("my-bucket", "who", "tok123", []string{"p1", "p2"})
 	if url == "" {
 		t.Fatalf("expected non-empty URL")
 	}
@@ -100,6 +75,13 @@ func TestBucketBrowseURL(t *testing.T) {
 	}
 	if want := "prev=p2"; !strings.Contains(url, want) {
 		t.Fatalf("expected %q in url %q", want, url)
+	}
+}
+
+func TestBucketBrowseURLEmptyQuery(t *testing.T) {
+	url := bucketBrowseURL("my-bucket", "", "", nil)
+	if got, want := url, "/bucket/view/my-bucket"; got != want {
+		t.Fatalf("unexpected browse url: got=%q want=%q", got, want)
 	}
 }
 

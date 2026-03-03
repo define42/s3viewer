@@ -64,6 +64,7 @@ func runServer() error {
 	if err != nil {
 		return fmt.Errorf("startup failed: %w", err)
 	}
+	time.Sleep(time.Second) // make minio boot
 
 	if err := checkEndpoint(a.endpoint, a.endpointSkipTls); err != nil {
 		return err
@@ -122,7 +123,7 @@ func newAppMux(a *app) http.Handler {
 
 	// READ
 	router.HandleFunc("/", a.handleIndex)                                                 // list buckets + forms
-	router.PathPrefix("/bucket/view/{bucket}").HandlerFunc(a.handleBucketBrowse)          // browse bucket
+	router.HandleFunc("/bucket/view/{bucket}", a.handleBucketBrowse)                      // browse bucket root
 	router.PathPrefix("/object/view/{bucket}/{key:.+}").HandlerFunc(a.handleObject)       // object details (tags + metadata)
 	router.PathPrefix("/object/download/{bucket}/{key:.+}").HandlerFunc(a.handleDownload) // download
 	return router
