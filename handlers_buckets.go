@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +22,11 @@ const bucketPageSize = 10
 func isNoSuchTagSetError(err error) bool {
 	var apiErr smithy.APIError
 	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchTagSet"
+}
+
+func isNoSuchLifecycleConfigurationError(err error) bool {
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchLifecycleConfiguration"
 }
 
 // ---------------- Index (buckets + forms) ----------------
@@ -130,6 +136,64 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	} else if !isNoSuchTagSetError(bucketTagErr) {
 		bucketTagError = "unavailable"
 		slog.Warn("GetBucketTagging failed in bucket browse", "bucket", bucket, "error", bucketTagErr)
+	}
+
+	type lifecycleRuleRow struct {
+		ID          string
+		Status      string
+		Prefix      string
+		Expiration  string
+		Transitions []string
+		AbortDays   string
+	}
+
+	var lifecycleRules []lifecycleRuleRow
+	lifecycleError := ""
+	lcOut, lcErr := s3Client.GetBucketLifecycleConfiguration(r.Context(), &s3.GetBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+	})
+	if lcErr == nil {
+		for _, rule := range lcOut.Rules {
+			row := lifecycleRuleRow{
+				ID:     aws.ToString(rule.ID),
+				Status: string(rule.Status),
+			}
+			if rule.Filter != nil {
+				if rule.Filter.Prefix != nil {
+					row.Prefix = aws.ToString(rule.Filter.Prefix)
+				} else if rule.Filter.And != nil && rule.Filter.And.Prefix != nil {
+					row.Prefix = aws.ToString(rule.Filter.And.Prefix)
+				}
+			}
+			if rule.Prefix != nil && row.Prefix == "" {
+				row.Prefix = aws.ToString(rule.Prefix)
+			}
+			if rule.Expiration != nil {
+				if rule.Expiration.Days != nil {
+					row.Expiration = strconv.Itoa(int(aws.ToInt32(rule.Expiration.Days))) + " days"
+				} else if rule.Expiration.Date != nil {
+					row.Expiration = rule.Expiration.Date.Format(time.RFC3339)
+				} else if rule.Expiration.ExpiredObjectDeleteMarker != nil && aws.ToBool(rule.Expiration.ExpiredObjectDeleteMarker) {
+					row.Expiration = "delete marker"
+				}
+			}
+			for _, tr := range rule.Transitions {
+				desc := string(tr.StorageClass)
+				if tr.Days != nil {
+					desc += " after " + strconv.Itoa(int(aws.ToInt32(tr.Days))) + " days"
+				} else if tr.Date != nil {
+					desc += " on " + tr.Date.Format(time.RFC3339)
+				}
+				row.Transitions = append(row.Transitions, desc)
+			}
+			if rule.AbortIncompleteMultipartUpload != nil && rule.AbortIncompleteMultipartUpload.DaysAfterInitiation != nil {
+				row.AbortDays = strconv.Itoa(int(aws.ToInt32(rule.AbortIncompleteMultipartUpload.DaysAfterInitiation))) + " days"
+			}
+			lifecycleRules = append(lifecycleRules, row)
+		}
+	} else if !isNoSuchLifecycleConfigurationError(lcErr) {
+		lifecycleError = "unavailable"
+		slog.Warn("GetBucketLifecycleConfiguration failed in bucket browse", "bucket", bucket, "error", lcErr)
 	}
 
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
@@ -271,5 +335,8 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 		"UploadAction":     fmt.Sprintf("/object/upload/%s?prefix=%s", url.PathEscape(bucket), url.QueryEscape(prefix)),
 		"DeleteBucketPOST": fmt.Sprintf("/bucket/delete/%s", url.PathEscape(bucket)),
+
+		"LifecycleRules": lifecycleRules,
+		"LifecycleError": lifecycleError,
 	})
 }
