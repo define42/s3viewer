@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/gorilla/mux"
 )
 
 const bucketPageSize = 10
@@ -113,8 +114,13 @@ func (a *app) handleGoToBucket(w http.ResponseWriter, r *http.Request) {
 
 // /bucket/view/{bucket}?search=...&token=...&prev=...
 func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
-	p := strings.TrimPrefix(r.URL.Path, "/bucket/view/")
-	if p == "" || strings.Contains(p, "/") {
+	bucketEscaped := mux.Vars(r)["bucket"]
+	if bucketEscaped == "" {
+		http.NotFound(w, r)
+		return
+	}
+	bucket, err := url.PathUnescape(bucketEscaped)
+	if err != nil || bucket == "" {
 		http.NotFound(w, r)
 		return
 	}
@@ -122,7 +128,6 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	bucket := p
 
 	search := r.URL.Query().Get("search")
 	listFilter := search
