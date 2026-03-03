@@ -183,6 +183,106 @@ func TestIntegrationMinIOLoginCreateAndUpload(t *testing.T) {
 	discardAndClose(t, afterLogoutResp)
 }
 
+func TestIntegrationMinIONestedKeyUploadFetchAndDelete(t *testing.T) {
+	ctx := context.Background()
+
+	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "minio/minio:latest",
+			ExposedPorts: []string{"9000/tcp"},
+			Env: map[string]string{
+				"MINIO_ROOT_USER":     "minioadmin",
+				"MINIO_ROOT_PASSWORD": "minioadmin",
+			},
+			Cmd: []string{"server", "/data", "--console-address", ":9001"},
+			WaitingFor: wait.ForHTTP("/minio/health/live").
+				WithPort("9000/tcp").
+				WithStartupTimeout(2 * time.Minute),
+		},
+		Started: true,
+	})
+	if err != nil {
+		t.Fatalf("start minio container: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = minio.Terminate(ctx)
+	})
+
+	host, err := minio.Host(ctx)
+	if err != nil {
+		t.Fatalf("get minio host: %v", err)
+	}
+	port, err := minio.MappedPort(ctx, "9000/tcp")
+	if err != nil {
+		t.Fatalf("get minio mapped port: %v", err)
+	}
+	endpoint := fmt.Sprintf("http://%s:%s", host, port.Port())
+
+	a := newIntegrationTestApp(endpoint)
+	srv := httptest.NewServer(newIntegrationTestMux(a))
+	t.Cleanup(srv.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("create cookie jar: %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 30 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	loginResp := postForm(t, client, srv.URL+"/login", url.Values{
+		"access_key": {"minioadmin"},
+		"secret_key": {"minioadmin"},
+	})
+	requireStatus(t, loginResp, http.StatusSeeOther)
+	requireLocation(t, loginResp, "/")
+	discardAndClose(t, loginResp)
+
+	bucket := fmt.Sprintf("integration-bucket-%d", time.Now().UnixNano())
+	createResp := postForm(t, client, srv.URL+"/bucket/create/"+url.PathEscape(bucket), url.Values{})
+	requireStatus(t, createResp, http.StatusSeeOther)
+	discardAndClose(t, createResp)
+
+	const objectKey = "/a/c/d.txt"
+
+	// The upload handler builds the S3 key as prefix+filename. To get the key
+	// "/a/c/d.txt" we pass prefix="/a/c/" via query param and filename "d.txt".
+	uploadURL := fmt.Sprintf("%s/object/upload/%s?prefix=%s", srv.URL, url.PathEscape(bucket), url.QueryEscape("/a/c/"))
+	uploadResp := postMultipartUpload(t, client, uploadURL, nil, []testUploadFile{
+		{Filename: "d.txt", Contents: "nested content"},
+	})
+	requireStatus(t, uploadResp, http.StatusSeeOther)
+	discardAndClose(t, uploadResp)
+
+	objectURL := fmt.Sprintf("%s/object/view/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape(objectKey))
+	objectResp, err := client.Get(objectURL)
+	if err != nil {
+		t.Fatalf("object details request failed: %v", err)
+	}
+	requireStatus(t, objectResp, http.StatusOK)
+	objectBody := readBody(t, objectResp)
+	if !strings.Contains(objectBody, "d.txt") {
+		t.Fatalf("expected object details page to include key d.txt")
+	}
+
+	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape(objectKey), url.Values{
+		"bucket": {bucket},
+		"key":    {objectKey},
+	})
+	requireStatus(t, deleteObjectResp, http.StatusSeeOther)
+	discardAndClose(t, deleteObjectResp)
+
+	deleteBucketResp := postForm(t, client, srv.URL+"/bucket/delete/"+url.PathEscape(bucket), url.Values{
+		"bucket": {bucket},
+	})
+	requireStatus(t, deleteBucketResp, http.StatusSeeOther)
+	discardAndClose(t, deleteBucketResp)
+}
+
 func newIntegrationTestApp(endpoint string) *app {
 	hashKey := []byte("0123456789abcdef0123456789abcdef")
 	blockKey := []byte("abcdef0123456789abcdef0123456789")
