@@ -264,6 +264,37 @@
   </div>
 
   <div class="card">
+    <h4 style="margin-top:0;">Lifecycle configuration</h4>
+    {{if hasErr .LifecycleError}}
+      <div class="muted">{{.LifecycleError}}</div>
+    {{else if not .LifecycleRules}}
+      <div class="muted">No lifecycle rules.</div>
+    {{else}}
+      <table>
+        <thead><tr><th>ID</th><th>Status</th><th>Prefix</th><th>Expiration</th><th>Transitions</th><th>Abort incomplete multipart upload</th></tr></thead>
+        <tbody>
+          {{range .LifecycleRules}}
+            <tr>
+              <td><code>{{.ID}}</code></td>
+              <td>{{.Status}}</td>
+              <td>{{if .Prefix}}<code>{{.Prefix}}</code>{{else}}<span class="muted">—</span>{{end}}</td>
+              <td>{{if .Expiration}}{{.Expiration}}{{else}}<span class="muted">—</span>{{end}}</td>
+              <td>
+                {{if .Transitions}}
+                  {{range .Transitions}}<div>{{.}}</div>{{end}}
+                {{else}}
+                  <span class="muted">—</span>
+                {{end}}
+              </td>
+              <td>{{if .AbortDays}}{{.AbortDays}}{{else}}<span class="muted">—</span>{{end}}</td>
+            </tr>
+          {{end}}
+        </tbody>
+      </table>
+    {{end}}
+  </div>
+
+  <div class="card">
     <h4>Folders</h4>
     {{if not .Folders}}<div class="muted">No folders.</div>{{end}}
     <ul>
