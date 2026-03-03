@@ -135,7 +135,6 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 	out, err := s3Client.ListObjectsV2(r.Context(), &s3.ListObjectsV2Input{
 		Bucket:            aws.String(bucket),
 		Prefix:            aws.String(listPrefix),
-		Delimiter:         aws.String("/"),
 		MaxKeys:           aws.Int32(bucketPageSize),
 		ContinuationToken: optionalString(token),
 	})
