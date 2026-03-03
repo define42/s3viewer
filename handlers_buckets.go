@@ -165,9 +165,6 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 					row.Prefix = aws.ToString(rule.Filter.And.Prefix)
 				}
 			}
-			if rule.Prefix != nil && row.Prefix == "" {
-				row.Prefix = aws.ToString(rule.Prefix)
-			}
 			if rule.Expiration != nil {
 				if rule.Expiration.Days != nil {
 					row.Expiration = strconv.Itoa(int(aws.ToInt32(rule.Expiration.Days))) + " days"
