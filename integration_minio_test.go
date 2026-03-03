@@ -5,11 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -291,6 +293,119 @@ func TestIntegrationMinIONestedKeyUploadFetchAndDelete(t *testing.T) {
 	discardAndClose(t, deleteBucketResp)
 }
 
+func TestIntegrationMinIOLargeRandomUploadAndDelete(t *testing.T) {
+	ctx := context.Background()
+
+	minio, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "minio/minio:latest",
+			ExposedPorts: []string{"9000/tcp"},
+			Env: map[string]string{
+				"MINIO_ROOT_USER":     "minioadmin",
+				"MINIO_ROOT_PASSWORD": "minioadmin",
+			},
+			Cmd: []string{"server", "/data", "--console-address", ":9001"},
+			WaitingFor: wait.ForHTTP("/minio/health/live").
+				WithPort("9000/tcp").
+				WithStartupTimeout(2 * time.Minute),
+		},
+		Started: true,
+	})
+	if err != nil {
+		t.Fatalf("start minio container: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = minio.Terminate(ctx)
+	})
+
+	host, err := minio.Host(ctx)
+	if err != nil {
+		t.Fatalf("get minio host: %v", err)
+	}
+	port, err := minio.MappedPort(ctx, "9000/tcp")
+	if err != nil {
+		t.Fatalf("get minio mapped port: %v", err)
+	}
+	endpoint := fmt.Sprintf("http://%s:%s", host, port.Port())
+
+	a := newIntegrationTestApp(endpoint)
+	srv := httptest.NewServer(newIntegrationTestMux(a))
+	t.Cleanup(srv.Close)
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("create cookie jar: %v", err)
+	}
+	client := &http.Client{
+		Jar:     jar,
+		Timeout: 5 * time.Minute,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	loginResp := postForm(t, client, srv.URL+"/login", url.Values{
+		"access_key": {"minioadmin"},
+		"secret_key": {"minioadmin"},
+	})
+	requireStatus(t, loginResp, http.StatusSeeOther)
+	requireLocation(t, loginResp, "/")
+	discardAndClose(t, loginResp)
+
+	bucket := fmt.Sprintf("integration-large-bucket-%d", time.Now().UnixNano())
+	createResp := postForm(t, client, srv.URL+"/bucket/create/"+url.PathEscape(bucket), url.Values{})
+	requireStatus(t, createResp, http.StatusSeeOther)
+	discardAndClose(t, createResp)
+
+	const (
+		objectKey  = "random-150mb.bin"
+		objectSize = int64(150 << 20)
+	)
+	randomReader := io.LimitReader(rand.New(rand.NewSource(time.Now().UnixNano())), objectSize)
+	uploadResp := postMultipartUploadReader(t, client, srv.URL+"/object/upload/"+url.PathEscape(bucket), nil, []testUploadStreamFile{
+		{Filename: objectKey, Reader: randomReader},
+	})
+	requireStatus(t, uploadResp, http.StatusSeeOther)
+	discardAndClose(t, uploadResp)
+
+	downloadURL := fmt.Sprintf("%s/object/download/%s/%s", srv.URL, url.PathEscape(bucket), url.PathEscape(objectKey))
+	downloadResp, err := client.Get(downloadURL)
+	if err != nil {
+		t.Fatalf("download request failed: %v", err)
+	}
+	requireStatus(t, downloadResp, http.StatusOK)
+	if got, want := downloadResp.Header.Get("Content-Length"), strconv.FormatInt(objectSize, 10); got != want {
+		t.Fatalf("unexpected content length: got=%q want=%q", got, want)
+	}
+	if err := downloadResp.Body.Close(); err != nil {
+		t.Fatalf("close download body: %v", err)
+	}
+
+	deleteObjectResp := postForm(t, client, srv.URL+"/object/delete/"+url.PathEscape(bucket)+"/"+url.PathEscape(objectKey), url.Values{
+		"bucket": {bucket},
+		"key":    {objectKey},
+	})
+	requireStatus(t, deleteObjectResp, http.StatusSeeOther)
+	discardAndClose(t, deleteObjectResp)
+
+	browseURL := fmt.Sprintf("%s/bucket/view/%s", srv.URL, url.PathEscape(bucket))
+	browseResp, err := client.Get(browseURL)
+	if err != nil {
+		t.Fatalf("browse bucket request failed: %v", err)
+	}
+	requireStatus(t, browseResp, http.StatusOK)
+	browseBody := readBody(t, browseResp)
+	if strings.Contains(browseBody, objectKey) {
+		t.Fatalf("expected object %q to be deleted", objectKey)
+	}
+
+	deleteBucketResp := postForm(t, client, srv.URL+"/bucket/delete/"+url.PathEscape(bucket), url.Values{
+		"bucket": {bucket},
+	})
+	requireStatus(t, deleteBucketResp, http.StatusSeeOther)
+	discardAndClose(t, deleteBucketResp)
+}
+
 func newIntegrationTestApp(endpoint string) *app {
 	hashKey := []byte("0123456789abcdef0123456789abcdef")
 	blockKey := []byte("abcdef0123456789abcdef0123456789")
@@ -314,6 +429,11 @@ func newIntegrationTestMux(a *app) http.Handler {
 type testUploadFile struct {
 	Filename string
 	Contents string
+}
+
+type testUploadStreamFile struct {
+	Filename string
+	Reader   io.Reader
 }
 
 func postMultipartUpload(t *testing.T, client *http.Client, endpoint string, fields map[string]string, files []testUploadFile) *http.Response {
@@ -351,6 +471,66 @@ func postMultipartUpload(t *testing.T, client *http.Client, endpoint string, fie
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("execute multipart request: %v", err)
+	}
+	return resp
+}
+
+func postMultipartUploadReader(t *testing.T, client *http.Client, endpoint string, fields map[string]string, files []testUploadStreamFile) *http.Response {
+	t.Helper()
+
+	pr, pw := io.Pipe()
+	w := multipart.NewWriter(pw)
+	errCh := make(chan error, 1)
+
+	go func() {
+		defer close(errCh)
+
+		for k, v := range fields {
+			if err := w.WriteField(k, v); err != nil {
+				errCh <- fmt.Errorf("write multipart field %q: %w", k, err)
+				_ = pw.CloseWithError(err)
+				return
+			}
+		}
+
+		for _, f := range files {
+			part, err := w.CreateFormFile("file", f.Filename)
+			if err != nil {
+				errCh <- fmt.Errorf("create multipart file part: %w", err)
+				_ = pw.CloseWithError(err)
+				return
+			}
+			if _, err := io.Copy(part, f.Reader); err != nil {
+				errCh <- fmt.Errorf("write multipart file content: %w", err)
+				_ = pw.CloseWithError(err)
+				return
+			}
+		}
+
+		if err := w.Close(); err != nil {
+			errCh <- fmt.Errorf("close multipart writer: %w", err)
+			_ = pw.CloseWithError(err)
+			return
+		}
+		if err := pw.Close(); err != nil {
+			errCh <- fmt.Errorf("close multipart pipe writer: %w", err)
+			return
+		}
+	}()
+
+	req, err := http.NewRequest(http.MethodPost, endpoint, pr)
+	if err != nil {
+		t.Fatalf("build multipart request: %v", err)
+	}
+	req.Header.Set("Content-Type", w.FormDataContentType())
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("execute multipart request: %v", err)
+	}
+	if writeErr := <-errCh; writeErr != nil {
+		_ = resp.Body.Close()
+		t.Fatalf("stream multipart upload: %v", writeErr)
 	}
 	return resp
 }

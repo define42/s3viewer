@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/gorilla/mux"
 )
 
@@ -64,8 +66,11 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uploadedCount := 0
+	const (
+		maxPartSize = 64 << 20 // 64 MiB
+	)
 
+	uploadedCount := 0
 	var uploadFileNames []string
 
 	for {
@@ -91,29 +96,141 @@ func (a *app) handleUpload(w http.ResponseWriter, r *http.Request) {
 		}
 		uploadFileNames = append(uploadFileNames, filename)
 
-		var buf bytes.Buffer
 		contentType := part.Header.Get("Content-Type")
-		_, copyErr := io.Copy(&buf, part)
-		closePartErr := part.Close()
-		if copyErr != nil {
-			a.renderError(w, "failed to read uploaded file", copyErr, http.StatusBadRequest)
-			return
-		}
-		if closePartErr != nil {
-			a.renderError(w, "failed to close uploaded file stream", closePartErr, http.StatusBadRequest)
+
+		// Read up to 64MiB+1 into memory to decide strategy.
+		head, readErr := io.ReadAll(io.LimitReader(part, maxPartSize+1))
+		if readErr != nil {
+			_ = part.Close()
+			a.renderError(w, "failed to read uploaded file", readErr, http.StatusBadRequest)
 			return
 		}
 
-		_, err = s3Client.PutObject(r.Context(), &s3.PutObjectInput{
+		// SMALL: PutObject
+		if int64(len(head)) <= maxPartSize {
+			_, putErr := s3Client.PutObject(r.Context(), &s3.PutObjectInput{
+				Bucket:      aws.String(bucket),
+				Key:         aws.String(filename),
+				Body:        bytes.NewReader(head),
+				ContentType: optionalString(contentType),
+			})
+			closeErr := part.Close()
+			if putErr != nil {
+				a.renderError(w, "Upload failed", putErr, http.StatusBadGateway)
+				return
+			}
+			if closeErr != nil {
+				a.renderError(w, "failed to close uploaded file stream", closeErr, http.StatusBadRequest)
+				return
+			}
+
+			uploadedCount++
+			continue
+		}
+
+		// LARGE: Multipart Upload (stream in 64MiB chunks)
+		createOut, createErr := s3Client.CreateMultipartUpload(r.Context(), &s3.CreateMultipartUploadInput{
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(filename),
-			Body:        bytes.NewReader(buf.Bytes()),
 			ContentType: optionalString(contentType),
 		})
-		if err != nil {
-			a.renderError(w, "Upload failed", err, http.StatusBadGateway)
+		if createErr != nil {
+			_ = part.Close()
+			a.renderError(w, "CreateMultipartUpload failed", createErr, http.StatusBadGateway)
 			return
 		}
+
+		uploadID := aws.ToString(createOut.UploadId)
+		var completedParts []types.CompletedPart
+		partNumber := int32(1)
+
+		abort := func(cause error, msg string) {
+			_, _ = s3Client.AbortMultipartUpload(r.Context(), &s3.AbortMultipartUploadInput{
+				Bucket:   aws.String(bucket),
+				Key:      aws.String(filename),
+				UploadId: aws.String(uploadID),
+			})
+			_ = part.Close()
+			a.renderError(w, msg, cause, http.StatusBadGateway)
+		}
+
+		// Helper to upload one MPU part
+		uploadPart := func(data []byte, num int32) error {
+			out, err := s3Client.UploadPart(r.Context(), &s3.UploadPartInput{
+				Bucket:        aws.String(bucket),
+				Key:           aws.String(filename),
+				UploadId:      aws.String(uploadID),
+				PartNumber:    aws.Int32(num),
+				Body:          bytes.NewReader(data),
+				ContentLength: aws.Int64(int64(len(data))),
+			})
+			if err != nil {
+				return err
+			}
+			completedParts = append(completedParts, types.CompletedPart{
+				ETag:       out.ETag,
+				PartNumber: aws.Int32(num),
+			})
+			return nil
+		}
+
+		// Upload the already-read "head" as part #1 (it is > 64MiB so it's a valid non-last part)
+		if err := uploadPart(head, partNumber); err != nil {
+			abort(err, "UploadPart failed (initial chunk)")
+			return
+		}
+		partNumber++
+
+		// Stream the rest in fixed 64MiB chunks.
+		buf := make([]byte, maxPartSize)
+		for {
+			n, readErr := io.ReadFull(part, buf)
+			if readErr == nil {
+				if upErr := uploadPart(buf[:n], partNumber); upErr != nil {
+					abort(upErr, "UploadPart failed")
+					return
+				}
+				partNumber++
+				continue
+			}
+			if errors.Is(readErr, io.ErrUnexpectedEOF) {
+				if n > 0 {
+					if upErr := uploadPart(buf[:n], partNumber); upErr != nil {
+						abort(upErr, "UploadPart failed")
+						return
+					}
+				}
+				break
+			}
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			if readErr != nil {
+				abort(readErr, "failed while reading upload stream")
+				return
+			}
+		}
+
+		// Complete MPU
+		_, completeErr := s3Client.CompleteMultipartUpload(r.Context(), &s3.CompleteMultipartUploadInput{
+			Bucket:   aws.String(bucket),
+			Key:      aws.String(filename),
+			UploadId: aws.String(uploadID),
+			MultipartUpload: &types.CompletedMultipartUpload{
+				Parts: completedParts,
+			},
+		})
+		closeErr := part.Close()
+
+		if completeErr != nil {
+			abort(completeErr, "CompleteMultipartUpload failed")
+			return
+		}
+		if closeErr != nil {
+			a.renderError(w, "failed to close uploaded file stream", closeErr, http.StatusBadRequest)
+			return
+		}
+
 		uploadedCount++
 	}
 
