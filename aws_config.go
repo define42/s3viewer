@@ -41,7 +41,7 @@ func loadAWSConfigWithStaticCredentials(ctx context.Context, region, endpoint, a
 		if tr.TLSClientConfig == nil {
 			tr.TLSClientConfig = &tls.Config{}
 		}
-		tr.TLSClientConfig.InsecureSkipVerify = true
+		tr.TLSClientConfig.InsecureSkipVerify = true // #nosec G402 -- only when explicitly requested
 
 		optFns = append(optFns, config.WithHTTPClient(&http.Client{Transport: tr}))
 	}

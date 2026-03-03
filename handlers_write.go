@@ -321,7 +321,12 @@ func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	copySource := url.PathEscape(bucket) + "/" + url.PathEscape(key)
+	// CopySource must preserve '/' as path separators; encode each segment separately.
+	keySegments := strings.Split(key, "/")
+	for i, seg := range keySegments {
+		keySegments[i] = url.PathEscape(seg)
+	}
+	copySource := url.PathEscape(bucket) + "/" + strings.Join(keySegments, "/")
 	_, err := s3Client.CopyObject(r.Context(), &s3.CopyObjectInput{
 		Bucket:     aws.String(bucket),
 		CopySource: aws.String(copySource),
