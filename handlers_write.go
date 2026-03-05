@@ -344,6 +344,37 @@ func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 
+func (a *app) handleDeleteLifecycle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+		return
+	}
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if bucket == "" {
+		http.Error(w, "bucket required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := s3Client.DeleteBucketLifecycle(r.Context(), &s3.DeleteBucketLifecycleInput{Bucket: aws.String(bucket)})
+	if err != nil {
+		a.renderError(w, "DeleteBucketLifecycle failed", err, http.StatusBadGateway)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
+}
+
 func (a *app) handleDeleteBucket(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "POST only", http.StatusMethodNotAllowed)
