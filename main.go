@@ -119,6 +119,8 @@ func newAppMux(a *app) http.Handler {
 	router.HandleFunc("/bucket/delete/{bucket}", a.handleDeleteBucket)
 	router.HandleFunc("/bucket/lifecycle/delete/{bucket}", a.handleDeleteLifecycle)
 	router.HandleFunc("/bucket/lifecycle/put/{bucket}", a.handlePutLifecycle)
+	router.HandleFunc("/bucket/policy/delete/{bucket}", a.handleDeleteBucketPolicy)
+	router.HandleFunc("/bucket/policy/put/{bucket}", a.handlePutBucketPolicy)
 	router.HandleFunc("/object/upload/{bucket}", a.handleUpload)
 	router.HandleFunc("/object/delete/{bucket}/{key:.+}", a.handleDeleteObject)
 	router.HandleFunc("/object/rename/{bucket}/{key:.+}", a.handleRenameObject)

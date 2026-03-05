@@ -82,6 +82,10 @@ func TestWriteHandlerFieldValidation(t *testing.T) {
 		{name: "rename object missing new_key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&key=old.txt", wantStatus: http.StatusBadRequest},
 		{name: "rename object missing key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&new_key=new.txt", wantStatus: http.StatusBadRequest},
 		{name: "rename object same key", handler: a.handleRenameObject, path: "/object/rename", body: "bucket=test&key=same.txt&new_key=same.txt", wantStatus: http.StatusBadRequest},
+		{name: "put policy missing bucket", handler: a.handlePutBucketPolicy, path: "/bucket/policy/put", body: `policy={"Version":"2012-10-17"}`, wantStatus: http.StatusBadRequest},
+		{name: "put policy missing policy", handler: a.handlePutBucketPolicy, path: "/bucket/policy/put", body: "bucket=test", wantStatus: http.StatusBadRequest},
+		{name: "put policy invalid json", handler: a.handlePutBucketPolicy, path: "/bucket/policy/put", body: "bucket=test&policy=not-json", wantStatus: http.StatusBadRequest},
+		{name: "delete policy missing bucket", handler: a.handleDeleteBucketPolicy, path: "/bucket/policy/delete", body: "", wantStatus: http.StatusBadRequest},
 	}
 
 	for _, tc := range tests {

@@ -47,6 +47,8 @@ func TestWriteHandlersMethodGuards(t *testing.T) {
 		{name: "delete lifecycle", handler: a.handleDeleteLifecycle},
 		{name: "go to bucket", handler: a.handleGoToBucket},
 		{name: "rename object", handler: a.handleRenameObject},
+		{name: "put bucket policy", handler: a.handlePutBucketPolicy},
+		{name: "delete bucket policy", handler: a.handleDeleteBucketPolicy},
 	}
 
 	for _, tc := range tests {

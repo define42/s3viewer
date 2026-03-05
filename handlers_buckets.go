@@ -341,5 +341,7 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 
 		"BucketPolicy":      bucketPolicy,
 		"BucketPolicyError": bucketPolicyError,
+		"DeletePolicyPOST":  fmt.Sprintf("/bucket/policy/delete/%s", url.PathEscape(bucket)),
+		"PutPolicyPOST":     fmt.Sprintf("/bucket/policy/put/%s", url.PathEscape(bucket)),
 	})
 }
