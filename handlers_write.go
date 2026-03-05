@@ -454,11 +454,57 @@ func (a *app) handleDeleteLifecycle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := s3Client.DeleteBucketLifecycle(r.Context(), &s3.DeleteBucketLifecycleInput{Bucket: aws.String(bucket)})
-	if err != nil {
-		a.renderError(w, "DeleteBucketLifecycle failed", err, http.StatusBadGateway)
+	ruleID := strings.TrimSpace(r.FormValue("rule_id"))
+	if ruleID == "" {
+		http.Error(w, "rule_id required", http.StatusBadRequest)
 		return
 	}
+
+	lcOut, lcErr := s3Client.GetBucketLifecycleConfiguration(r.Context(), &s3.GetBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+	})
+	if lcErr != nil {
+		if isNoSuchLifecycleConfigurationError(lcErr) {
+			http.Error(w, "lifecycle rule not found", http.StatusNotFound)
+			return
+		}
+		a.renderError(w, "GetBucketLifecycleConfiguration failed", lcErr, http.StatusBadGateway)
+		return
+	}
+
+	var remaining []types.LifecycleRule
+	found := false
+	for _, rule := range lcOut.Rules {
+		if aws.ToString(rule.ID) == ruleID {
+			found = true
+		} else {
+			remaining = append(remaining, rule)
+		}
+	}
+	if !found {
+		http.Error(w, "lifecycle rule not found", http.StatusNotFound)
+		return
+	}
+
+	if len(remaining) == 0 {
+		_, err := s3Client.DeleteBucketLifecycle(r.Context(), &s3.DeleteBucketLifecycleInput{Bucket: aws.String(bucket)})
+		if err != nil {
+			a.renderError(w, "DeleteBucketLifecycle failed", err, http.StatusBadGateway)
+			return
+		}
+	} else {
+		_, err := s3Client.PutBucketLifecycleConfiguration(r.Context(), &s3.PutBucketLifecycleConfigurationInput{
+			Bucket: aws.String(bucket),
+			LifecycleConfiguration: &types.BucketLifecycleConfiguration{
+				Rules: remaining,
+			},
+		})
+		if err != nil {
+			a.renderError(w, "PutBucketLifecycleConfiguration failed", err, http.StatusBadGateway)
+			return
+		}
+	}
+
 	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
 }
 

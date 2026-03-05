@@ -72,6 +72,7 @@ func TestWriteHandlerFieldValidation(t *testing.T) {
 		{name: "delete object missing key", handler: a.handleDeleteObject, path: "/object/delete", body: "bucket=test", wantStatus: http.StatusBadRequest},
 		{name: "delete bucket missing bucket", handler: a.handleDeleteBucket, path: "/bucket/delete", body: "", wantStatus: http.StatusBadRequest},
 		{name: "delete lifecycle missing bucket", handler: a.handleDeleteLifecycle, path: "/bucket/lifecycle/delete", body: "", wantStatus: http.StatusBadRequest},
+		{name: "delete lifecycle missing rule_id", handler: a.handleDeleteLifecycle, path: "/bucket/lifecycle/delete", body: "bucket=test", wantStatus: http.StatusBadRequest},
 		{name: "put lifecycle missing bucket", handler: a.handlePutLifecycle, path: "/bucket/lifecycle/put", body: "rule_id=r1&rule_status=Enabled&expiration_days=30", wantStatus: http.StatusBadRequest},
 		{name: "put lifecycle missing rule_id", handler: a.handlePutLifecycle, path: "/bucket/lifecycle/put", body: "bucket=test&rule_status=Enabled&expiration_days=30", wantStatus: http.StatusBadRequest},
 		{name: "put lifecycle invalid rule_status", handler: a.handlePutLifecycle, path: "/bucket/lifecycle/put", body: "bucket=test&rule_id=r1&rule_status=Invalid&expiration_days=30", wantStatus: http.StatusBadRequest},

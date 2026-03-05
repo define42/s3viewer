@@ -257,7 +257,7 @@
       <div class="muted">No lifecycle rules.</div>
     {{else}}
       <table>
-        <thead><tr><th>ID</th><th>Status</th><th>Prefix</th><th>Expiration</th><th>Transitions</th><th>Abort incomplete multipart upload</th></tr></thead>
+        <thead><tr><th>ID</th><th>Status</th><th>Prefix</th><th>Expiration</th><th>Transitions</th><th>Abort incomplete multipart upload</th><th></th></tr></thead>
         <tbody>
           {{range .LifecycleRules}}
             <tr>
@@ -273,16 +273,17 @@
                 {{end}}
               </td>
               <td>{{if .AbortDays}}{{.AbortDays}}{{else}}<span class="muted">—</span>{{end}}</td>
+              <td>
+                <form method="post" action="{{$.DeleteLifecyclePOST}}" onsubmit="return confirm('Delete lifecycle rule {{.ID}}?');" style="margin:0;">
+                  <input type="hidden" name="bucket" value="{{$.Bucket}}" />
+                  <input type="hidden" name="rule_id" value="{{.ID}}" />
+                  <button class="btn danger" type="submit">Delete</button>
+                </form>
+              </td>
             </tr>
           {{end}}
         </tbody>
       </table>
-      <div class="row" style="margin-top:12px;">
-        <form method="post" action="{{.DeleteLifecyclePOST}}" onsubmit="return confirm('Delete all lifecycle rules for bucket {{.Bucket}}?');">
-          <input type="hidden" name="bucket" value="{{.Bucket}}" />
-          <button class="btn danger" type="submit">Delete lifecycle</button>
-        </form>
-      </div>
     {{end}}
 
     <h5 style="margin-top:16px; margin-bottom:8px;">Add lifecycle rule</h5>
