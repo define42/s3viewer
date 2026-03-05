@@ -44,6 +44,7 @@ func TestWriteHandlersMethodGuards(t *testing.T) {
 		{name: "upload", handler: a.handleUpload},
 		{name: "delete object", handler: a.handleDeleteObject},
 		{name: "delete bucket", handler: a.handleDeleteBucket},
+		{name: "delete lifecycle", handler: a.handleDeleteLifecycle},
 		{name: "go to bucket", handler: a.handleGoToBucket},
 		{name: "rename object", handler: a.handleRenameObject},
 	}

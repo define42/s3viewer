@@ -277,6 +277,12 @@
           {{end}}
         </tbody>
       </table>
+      <div class="row" style="margin-top:12px;">
+        <form method="post" action="{{.DeleteLifecyclePOST}}" onsubmit="return confirm('Delete all lifecycle rules for bucket {{.Bucket}}?');">
+          <input type="hidden" name="bucket" value="{{.Bucket}}" />
+          <button class="btn danger" type="submit">Delete lifecycle</button>
+        </form>
+      </div>
     {{end}}
   </div>
 
