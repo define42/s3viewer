@@ -284,6 +284,19 @@
         </form>
       </div>
     {{end}}
+
+    <h5 style="margin-top:16px; margin-bottom:8px;">Add lifecycle rule</h5>
+    <form method="post" action="{{.PutLifecyclePOST}}" class="row" style="flex-wrap:wrap;gap:8px;align-items:center;">
+      <input type="hidden" name="bucket" value="{{.Bucket}}" />
+      <input type="text" name="rule_id" placeholder="rule-id (required)" required style="min-width:160px;" />
+      <select name="rule_status" class="btn" style="padding:8px;">
+        <option value="Enabled">Enabled</option>
+        <option value="Disabled">Disabled</option>
+      </select>
+      <input type="text" name="rule_prefix" placeholder="prefix (empty = all objects)" style="min-width:200px;" />
+      <input type="text" name="expiration_days" placeholder="expiration days (required)" required style="min-width:190px;" />
+      <button class="btn" type="submit">Add rule</button>
+    </form>
   </div>
 
   <div class="card">
