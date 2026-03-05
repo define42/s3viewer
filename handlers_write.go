@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -338,6 +339,92 @@ func (a *app) handleRenameObject(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		a.renderError(w, "DeleteObject failed after copy", err, http.StatusBadGateway)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
+}
+
+func (a *app) handlePutLifecycle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+		return
+	}
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if bucket == "" {
+		http.Error(w, "bucket required", http.StatusBadRequest)
+		return
+	}
+
+	ruleID := strings.TrimSpace(r.FormValue("rule_id"))
+	if ruleID == "" {
+		http.Error(w, "rule_id required", http.StatusBadRequest)
+		return
+	}
+
+	statusStr := strings.TrimSpace(r.FormValue("rule_status"))
+	if statusStr != "Enabled" && statusStr != "Disabled" {
+		http.Error(w, "rule_status must be Enabled or Disabled", http.StatusBadRequest)
+		return
+	}
+
+	expirationDaysStr := strings.TrimSpace(r.FormValue("expiration_days"))
+	if expirationDaysStr == "" {
+		http.Error(w, "expiration_days required", http.StatusBadRequest)
+		return
+	}
+	expirationDays, err := strconv.Atoi(expirationDaysStr)
+	if err != nil || expirationDays < 1 {
+		http.Error(w, "expiration_days must be a positive integer", http.StatusBadRequest)
+		return
+	}
+
+	prefix := strings.TrimSpace(r.FormValue("rule_prefix"))
+
+	// Fetch existing rules so the PUT appends rather than replaces.
+	var existingRules []types.LifecycleRule
+	lcOut, lcErr := s3Client.GetBucketLifecycleConfiguration(r.Context(), &s3.GetBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+	})
+	if lcErr == nil {
+		existingRules = lcOut.Rules
+	} else if !isNoSuchLifecycleConfigurationError(lcErr) {
+		a.renderError(w, "GetBucketLifecycleConfiguration failed", lcErr, http.StatusBadGateway)
+		return
+	}
+
+	newRule := types.LifecycleRule{
+		ID:     aws.String(ruleID),
+		Status: types.ExpirationStatus(statusStr),
+		Filter: &types.LifecycleRuleFilter{
+			Prefix: aws.String(prefix),
+		},
+		Expiration: &types.LifecycleExpiration{
+			Days: aws.Int32(int32(expirationDays)),
+		},
+	}
+	rules := append(existingRules, newRule)
+
+	_, err = s3Client.PutBucketLifecycleConfiguration(r.Context(), &s3.PutBucketLifecycleConfigurationInput{
+		Bucket: aws.String(bucket),
+		LifecycleConfiguration: &types.BucketLifecycleConfiguration{
+			Rules: rules,
+		},
+	})
+	if err != nil {
+		a.renderError(w, "PutBucketLifecycleConfiguration failed", err, http.StatusBadGateway)
 		return
 	}
 

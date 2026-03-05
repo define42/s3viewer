@@ -334,9 +334,10 @@ func (a *app) handleBucketBrowse(w http.ResponseWriter, r *http.Request) {
 		"UploadAction":     fmt.Sprintf("/object/upload/%s", url.PathEscape(bucket)),
 		"DeleteBucketPOST": fmt.Sprintf("/bucket/delete/%s", url.PathEscape(bucket)),
 
-		"LifecycleRules":       lifecycleRules,
-		"LifecycleError":       lifecycleError,
+		"LifecycleRules":      lifecycleRules,
+		"LifecycleError":      lifecycleError,
 		"DeleteLifecyclePOST": fmt.Sprintf("/bucket/lifecycle/delete/%s", url.PathEscape(bucket)),
+		"PutLifecyclePOST":    fmt.Sprintf("/bucket/lifecycle/put/%s", url.PathEscape(bucket)),
 
 		"BucketPolicy":      bucketPolicy,
 		"BucketPolicyError": bucketPolicyError,
