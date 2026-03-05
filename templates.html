@@ -299,30 +299,34 @@
     </form>
   </div>
 
-  <div class="card">
-    <h4 style="margin-top:0;">Bucket policy</h4>
-    {{if hasErr .BucketPolicyError}}
-      <div class="muted">{{.BucketPolicyError}}</div>
-    {{else if not .BucketPolicy}}
-      <div class="muted">No bucket policy.</div>
-    {{else}}
-      <pre style="white-space:pre-wrap;overflow-x:auto;"><code>{{.BucketPolicy}}</code></pre>
-      <div class="row" style="margin-top:12px;">
-        <form method="post" action="{{.DeletePolicyPOST}}" onsubmit="return confirm('Delete bucket policy for {{.Bucket}}?');">
-          <input type="hidden" name="bucket" value="{{.Bucket}}" />
-          <button class="btn danger" type="submit">Delete policy</button>
-        </form>
-      </div>
-    {{end}}
+  <div class="card-row">
+    <div class="card">
+      <h4 style="margin-top:0;">Bucket policy</h4>
+      {{if hasErr .BucketPolicyError}}
+        <div class="muted">{{.BucketPolicyError}}</div>
+      {{else if not .BucketPolicy}}
+        <div class="muted">No bucket policy.</div>
+      {{else}}
+        <pre style="white-space:pre-wrap;overflow-x:auto;"><code>{{.BucketPolicy}}</code></pre>
+        <div class="row" style="margin-top:12px;">
+          <form method="post" action="{{.DeletePolicyPOST}}" onsubmit="return confirm('Delete bucket policy for {{.Bucket}}?');">
+            <input type="hidden" name="bucket" value="{{.Bucket}}" />
+            <button class="btn danger" type="submit">Delete policy</button>
+          </form>
+        </div>
+      {{end}}
+    </div>
 
-    <h5 style="margin-top:16px; margin-bottom:8px;">Set bucket policy</h5>
-    <form method="post" action="{{.PutPolicyPOST}}" style="display:flex;flex-direction:column;gap:8px;">
-      <input type="hidden" name="bucket" value="{{.Bucket}}" />
-      <textarea name="policy" rows="10" placeholder='{"Version":"2012-10-17","Statement":[...]}' required style="font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt);color:var(--text);resize:vertical;">{{.BucketPolicy}}</textarea>
-      <div>
-        <button class="btn" type="submit">Set policy</button>
-      </div>
-    </form>
+    <div class="card">
+      <h4 style="margin-top:0;">Set bucket policy</h4>
+      <form method="post" action="{{.PutPolicyPOST}}" style="display:flex;flex-direction:column;gap:8px;">
+        <input type="hidden" name="bucket" value="{{.Bucket}}" />
+        <textarea name="policy" rows="10" placeholder='{"Version":"2012-10-17","Statement":[...]}' required style="font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-alt);color:var(--text);resize:vertical;">{{.BucketPolicy}}</textarea>
+        <div>
+          <button class="btn" type="submit">Set policy</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="card">
