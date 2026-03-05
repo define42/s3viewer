@@ -385,7 +385,7 @@ func (a *app) handlePutLifecycle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "expiration_days required", http.StatusBadRequest)
 		return
 	}
-	expirationDays, err := strconv.Atoi(expirationDaysStr)
+	expirationDays, err := strconv.ParseInt(expirationDaysStr, 10, 32)
 	if err != nil || expirationDays < 1 {
 		http.Error(w, "expiration_days must be a positive integer", http.StatusBadRequest)
 		return
