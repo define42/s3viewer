@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -457,6 +458,82 @@ func (a *app) handleDeleteLifecycle(w http.ResponseWriter, r *http.Request) {
 	_, err := s3Client.DeleteBucketLifecycle(r.Context(), &s3.DeleteBucketLifecycleInput{Bucket: aws.String(bucket)})
 	if err != nil {
 		a.renderError(w, "DeleteBucketLifecycle failed", err, http.StatusBadGateway)
+		return
+	}
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
+}
+
+func (a *app) handlePutBucketPolicy(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+		return
+	}
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if bucket == "" {
+		http.Error(w, "bucket required", http.StatusBadRequest)
+		return
+	}
+
+	policy := strings.TrimSpace(r.FormValue("policy"))
+	if policy == "" {
+		http.Error(w, "policy required", http.StatusBadRequest)
+		return
+	}
+	if !json.Valid([]byte(policy)) {
+		http.Error(w, "policy must be valid JSON", http.StatusBadRequest)
+		return
+	}
+
+	_, err := s3Client.PutBucketPolicy(r.Context(), &s3.PutBucketPolicyInput{
+		Bucket: aws.String(bucket),
+		Policy: aws.String(policy),
+	})
+	if err != nil {
+		a.renderError(w, "PutBucketPolicy failed", err, http.StatusBadGateway)
+		return
+	}
+
+	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
+}
+
+func (a *app) handleDeleteBucketPolicy(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+	s3Client, ok := a.authenticatedS3Client(w, r)
+	if !ok {
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		a.renderError(w, "ParseForm failed", err, http.StatusBadRequest)
+		return
+	}
+	bucket := strings.TrimSpace(mux.Vars(r)["bucket"])
+	if formBucket := strings.TrimSpace(r.FormValue("bucket")); formBucket != "" {
+		bucket = formBucket
+	}
+	if bucket == "" {
+		http.Error(w, "bucket required", http.StatusBadRequest)
+		return
+	}
+
+	_, err := s3Client.DeleteBucketPolicy(r.Context(), &s3.DeleteBucketPolicyInput{Bucket: aws.String(bucket)})
+	if err != nil {
+		a.renderError(w, "DeleteBucketPolicy failed", err, http.StatusBadGateway)
 		return
 	}
 	http.Redirect(w, r, fmt.Sprintf("/bucket/view/%s", url.PathEscape(bucket)), http.StatusSeeOther)
