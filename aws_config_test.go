@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -61,6 +65,43 @@ func TestNewS3ClientRequiresKeys(t *testing.T) {
 	_, err := newS3Client(context.Background(), "us-east-1", "", true, "", "", "", false, false)
 	if err == nil {
 		t.Fatalf("expected error when creating client without credentials")
+	}
+}
+
+func TestAssumeRole(t *testing.T) {
+	var requestValues url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+		}
+		requestValues, err = url.ParseQuery(string(body))
+		if err != nil {
+			t.Errorf("parse request body: %v", err)
+		}
+		w.Header().Set("Content-Type", "text/xml")
+		_, _ = io.WriteString(w, `<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/"><AssumeRoleResult><Credentials><AccessKeyId>assumed-ak</AccessKeyId><SecretAccessKey>assumed-sk</SecretAccessKey><SessionToken>token</SessionToken><Expiration>2030-01-01T00:00:00Z</Expiration></Credentials></AssumeRoleResult><ResponseMetadata><RequestId>request-id</RequestId></ResponseMetadata></AssumeRoleResponse>`)
+	}))
+	defer server.Close()
+
+	creds, err := assumeRole(context.Background(), "us-east-1", server.URL, "ak", "sk", "arn:aws:iam::123456789012:role/viewer", "viewer-session", "external", false)
+	if err != nil {
+		t.Fatalf("assumeRole returned error: %v", err)
+	}
+	if creds.AccessKeyID != "assumed-ak" || creds.SecretAccessKey != "assumed-sk" || creds.SessionToken != "token" {
+		t.Fatalf("unexpected credentials: %#v", creds)
+	}
+	if !creds.CanExpire || creds.Expires.IsZero() {
+		t.Fatalf("expected expiring credentials: %#v", creds)
+	}
+	if requestValues.Get("RoleArn") != "arn:aws:iam::123456789012:role/viewer" {
+		t.Fatalf("unexpected RoleArn: %q", requestValues.Get("RoleArn"))
+	}
+	if requestValues.Get("RoleSessionName") != "viewer-session" {
+		t.Fatalf("unexpected RoleSessionName: %q", requestValues.Get("RoleSessionName"))
+	}
+	if requestValues.Get("ExternalId") != "external" {
+		t.Fatalf("unexpected ExternalId: %q", requestValues.Get("ExternalId"))
 	}
 }
 
