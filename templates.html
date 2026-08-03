@@ -59,6 +59,7 @@
     <div class="topbar-right">
       <span class="muted">Generated: {{.Now}}</span>
       {{if .IsAuthenticated}}
+      <a class="btn" href="/assume-role">Assume role</a>
       <form method="post" action="/logout" style="margin:0;">
         <button class="btn" type="submit">Logout</button>
       </form>
@@ -121,6 +122,41 @@
       {{end}}
       </tbody>
     </table>
+  </div>
+{{template "layout-end" .}}
+{{end}}
+
+{{define "assume-role"}}
+{{template "layout-start" .}}
+  <div class="card" style="max-width:640px;">
+    <h3 style="margin-top:0;">Assume IAM role</h3>
+    {{if .CurrentRoleARN}}
+      <p>Current role: <code>{{.CurrentRoleARN}}</code></p>
+      <form method="post" action="/assume-role/reset">
+        <button class="btn" type="submit">Return to login credentials</button>
+      </form>
+      <hr/>
+    {{end}}
+    <form method="post" action="/assume-role">
+      <div class="row">
+        <input type="text" name="role_arn" value="{{.RoleARN}}" placeholder="Role ARN" required />
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <input type="text" name="session_name" value="{{.SessionName}}" placeholder="Role session name" />
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <input type="password" name="external_id" placeholder="External ID (optional)" />
+      </div>
+      {{if hasErr .AssumeRoleError}}
+        <p class="warn">
+          <strong>Could not assume role</strong><br/>
+          <span class="muted">{{.AssumeRoleError}}</span>
+        </p>
+      {{end}}
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" type="submit">Assume role</button>
+      </div>
+    </form>
   </div>
 {{template "layout-end" .}}
 {{end}}

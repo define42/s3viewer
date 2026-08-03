@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go/logging"
 )
 
@@ -79,6 +80,39 @@ func newS3Client(ctx context.Context, region, endpoint string, forcePathStyle bo
 		o.ResponseChecksumValidation = aws.ResponseChecksumValidationUnset
 	})
 	return client, nil
+}
+
+func assumeRole(ctx context.Context, region, endpoint, accessKey, secretKey, roleARN, sessionName, externalID string, endpointSkipTls bool) (aws.Credentials, error) {
+	cfg, err := loadAWSConfigWithStaticCredentials(ctx, region, endpoint, accessKey, secretKey, "", endpointSkipTls, false)
+	if err != nil {
+		return aws.Credentials{}, err
+	}
+
+	input := &sts.AssumeRoleInput{
+		RoleArn:         aws.String(roleARN),
+		RoleSessionName: aws.String(sessionName),
+	}
+	if externalID != "" {
+		input.ExternalId = aws.String(externalID)
+	}
+
+	output, err := sts.NewFromConfig(cfg).AssumeRole(ctx, input)
+	if err != nil {
+		return aws.Credentials{}, err
+	}
+	if output.Credentials == nil || output.Credentials.AccessKeyId == nil ||
+		output.Credentials.SecretAccessKey == nil || output.Credentials.SessionToken == nil ||
+		output.Credentials.Expiration == nil {
+		return aws.Credentials{}, fmt.Errorf("assume role response missing credentials")
+	}
+
+	return aws.Credentials{
+		AccessKeyID:     *output.Credentials.AccessKeyId,
+		SecretAccessKey: *output.Credentials.SecretAccessKey,
+		SessionToken:    *output.Credentials.SessionToken,
+		CanExpire:       true,
+		Expires:         *output.Credentials.Expiration,
+	}, nil
 }
 
 func getenv(k, def string) string {

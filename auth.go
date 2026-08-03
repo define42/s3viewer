@@ -21,8 +21,13 @@ const (
 )
 
 type userSession struct {
-	AccessKey string
-	SecretKey string
+	AccessKey            string
+	SecretKey            string
+	AssumedAccessKey     string
+	AssumedSecretKey     string
+	SessionToken         string
+	AssumedRoleARN       string
+	AssumedRoleExpiresAt time.Time
 }
 
 func generateRGWToken(username, password string) (string, error) {
@@ -90,8 +95,13 @@ func randomKey(n int) ([]byte, error) {
 
 func (a *app) setSessionCookie(w http.ResponseWriter, r *http.Request, sess userSession) error {
 	value := map[string]string{
-		"access_key": sess.AccessKey,
-		"secret_key": sess.SecretKey,
+		"access_key":              sess.AccessKey,
+		"secret_key":              sess.SecretKey,
+		"assumed_access_key":      sess.AssumedAccessKey,
+		"assumed_secret_key":      sess.AssumedSecretKey,
+		"session_token":           sess.SessionToken,
+		"assumed_role_arn":        sess.AssumedRoleARN,
+		"assumed_role_expires_at": sess.AssumedRoleExpiresAt.Format(time.RFC3339),
 	}
 
 	encoded, err := a.cookie.Encode(a.cookieName, value)
@@ -141,10 +151,33 @@ func (a *app) getSession(r *http.Request) (userSession, error) {
 		return userSession{}, fmt.Errorf("session missing credentials")
 	}
 
-	return userSession{
+	sess := userSession{
 		AccessKey: accessKey,
 		SecretKey: secretKey,
-	}, nil
+	}
+
+	roleARN := strings.TrimSpace(value["assumed_role_arn"])
+	if roleARN == "" {
+		return sess, nil
+	}
+
+	expiresAt, err := time.Parse(time.RFC3339, value["assumed_role_expires_at"])
+	if err != nil {
+		return userSession{}, fmt.Errorf("session has invalid assumed role expiration")
+	}
+	if !expiresAt.After(time.Now()) {
+		return sess, nil
+	}
+
+	sess.AssumedAccessKey = strings.TrimSpace(value["assumed_access_key"])
+	sess.AssumedSecretKey = strings.TrimSpace(value["assumed_secret_key"])
+	sess.SessionToken = strings.TrimSpace(value["session_token"])
+	if sess.AssumedAccessKey == "" || sess.AssumedSecretKey == "" || sess.SessionToken == "" {
+		return userSession{}, fmt.Errorf("session missing assumed role credentials")
+	}
+	sess.AssumedRoleARN = roleARN
+	sess.AssumedRoleExpiresAt = expiresAt
+	return sess, nil
 }
 
 func (a *app) requireSession(w http.ResponseWriter, r *http.Request) (userSession, bool) {
@@ -163,13 +196,23 @@ func (a *app) authenticatedS3Client(w http.ResponseWriter, r *http.Request) (*s3
 		return nil, false
 	}
 
-	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, sess.AccessKey, sess.SecretKey, "", a.endpointSkipTls, a.useRgwToken)
+	accessKey, secretKey, sessionToken := sess.AccessKey, sess.SecretKey, ""
+	useRgwToken := a.useRgwToken
+	if sess.AssumedRoleARN != "" {
+		accessKey = sess.AssumedAccessKey
+		secretKey = sess.AssumedSecretKey
+		sessionToken = sess.SessionToken
+		useRgwToken = false
+	}
+
+	client, err := newS3Client(r.Context(), a.region, a.endpoint, a.forcePathStyle, accessKey, secretKey, sessionToken, a.endpointSkipTls, useRgwToken)
 	if err != nil {
 		a.renderError(w, "Could not initialize S3 client", err, http.StatusInternalServerError)
 		return nil, false
 	}
 	slog.Info("request authenticated",
 		"user", sess.AccessKey,
+		"role", sess.AssumedRoleARN,
 		"path", r.URL.EscapedPath(),
 		"method", r.Method,
 	)
@@ -242,4 +285,90 @@ func (a *app) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	a.clearSessionCookie(w, r)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func (a *app) renderAssumeRole(w http.ResponseWriter, sess userSession, roleARN, sessionName, assumeErr string) {
+	a.render(w, "assume-role", map[string]any{
+		"Title":           "Assume role",
+		"RoleARN":         roleARN,
+		"SessionName":     sessionName,
+		"AssumeRoleError": assumeErr,
+		"CurrentRoleARN":  sess.AssumedRoleARN,
+		"IsAuthenticated": true,
+	})
+}
+
+func (a *app) handleAssumeRole(w http.ResponseWriter, r *http.Request) {
+	sess, ok := a.requireSession(w, r)
+	if !ok {
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		a.renderAssumeRole(w, sess, "", "s3viewer", "")
+		return
+	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+		if err := r.ParseForm(); err != nil {
+			a.renderAssumeRole(w, sess, "", "s3viewer", "invalid form data")
+			return
+		}
+
+		roleARN := strings.TrimSpace(r.FormValue("role_arn"))
+		sessionName := strings.TrimSpace(r.FormValue("session_name"))
+		externalID := strings.TrimSpace(r.FormValue("external_id"))
+		if roleARN == "" {
+			a.renderAssumeRole(w, sess, roleARN, sessionName, "role ARN is required")
+			return
+		}
+		if sessionName == "" {
+			sessionName = "s3viewer"
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		creds, err := assumeRole(ctx, a.region, a.stsEndpoint, sess.AccessKey, sess.SecretKey, roleARN, sessionName, externalID, a.endpointSkipTls)
+		if err != nil {
+			a.renderAssumeRole(w, sess, roleARN, sessionName, "failed to assume role")
+			return
+		}
+
+		sess.AssumedAccessKey = creds.AccessKeyID
+		sess.AssumedSecretKey = creds.SecretAccessKey
+		sess.SessionToken = creds.SessionToken
+		sess.AssumedRoleARN = roleARN
+		sess.AssumedRoleExpiresAt = creds.Expires
+		if err := a.setSessionCookie(w, r, sess); err != nil {
+			a.renderError(w, "Could not update login session", err, http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *app) handleResetRole(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST only", http.StatusMethodNotAllowed)
+		return
+	}
+
+	sess, ok := a.requireSession(w, r)
+	if !ok {
+		return
+	}
+	sess.AssumedAccessKey = ""
+	sess.AssumedSecretKey = ""
+	sess.SessionToken = ""
+	sess.AssumedRoleARN = ""
+	sess.AssumedRoleExpiresAt = time.Time{}
+	if err := a.setSessionCookie(w, r, sess); err != nil {
+		a.renderError(w, "Could not update login session", err, http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

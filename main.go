@@ -18,6 +18,7 @@ type app struct {
 	tpl             *template.Template
 	region          string
 	endpoint        string
+	stsEndpoint     string
 	forcePathStyle  bool
 	cookieName      string
 	cookie          *securecookie.SecureCookie
@@ -84,6 +85,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 	region := getenvAny("eu-west-1", "AWS_REGION", "S3_REGION")
 	listen := getenv("LISTEN_ADDR", ":8080")
 	endpoint := getenvAny("", "AWS_ENDPOINT_URL", "S3_ENDPOINT")
+	stsEndpoint := getenv("AWS_STS_ENDPOINT_URL", "")
 	endpointSkipTls := strings.EqualFold(strings.TrimSpace(getenv("S3_ENDPOINT_TLSSKIP", "")), "true")
 	forcePathStyle := strings.EqualFold(strings.TrimSpace(getenv("S3_FORCE_PATH_STYLE", "")), "true")
 	useRgwToken := strings.EqualFold(strings.TrimSpace(getenv("USE_RWG_TOKEN", "")), "true")
@@ -97,6 +99,7 @@ func buildAppAndMuxFromEnv() (*app, http.Handler, string, error) {
 		tpl:             newTemplates(),
 		region:          region,
 		endpoint:        endpoint,
+		stsEndpoint:     stsEndpoint,
 		forcePathStyle:  forcePathStyle,
 		cookieName:      sessionCookieName,
 		cookie:          sc,
@@ -112,6 +115,8 @@ func newAppMux(a *app) http.Handler {
 	router.UseEncodedPath()
 	router.HandleFunc("/login", a.handleLogin)
 	router.HandleFunc("/logout", a.handleLogout)
+	router.HandleFunc("/assume-role", a.handleAssumeRole)
+	router.HandleFunc("/assume-role/reset", a.handleResetRole)
 
 	// WRITE (POST)
 	router.HandleFunc("/bucket/goto", a.handleGoToBucket)
