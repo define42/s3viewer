@@ -15,6 +15,8 @@ jobs:
     permissions:
       contents: write   # required for tags + GitHub releases
       packages: write   # required for GHCR push
+    env:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
       # -------------------------------
@@ -53,10 +55,10 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload coverage to Codecov
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: ${{ env.CODECOV_TOKEN != '' }}
         uses: codecov/codecov-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
           files: coverage.out
           flags: unittests
           fail_ci_if_error: true
