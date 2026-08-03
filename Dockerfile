@@ -17,3 +17,4 @@ COPY --from=builder /out/s3gateway /s3gateway
 EXPOSE 8080
 
 ENTRYPOINT ["/s3gateway"]
+
