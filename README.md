@@ -7,6 +7,7 @@ Simple web UI for S3-compatible object storage (AWS S3, MinIO, etc.).
 ## What it does
 
 - Login with `AccessKey` + `SecretKey` (session cookie via `gorilla/securecookie`)
+- Assume an IAM role after login, with optional external ID
 - List buckets
 - Browse objects with pagination (10 items per page, `Prev`/`Next`)
 - Filter objects by key prefix (`starts-with`) in bucket browse
@@ -62,6 +63,7 @@ Then open `http://localhost:8080` and login with your S3 credentials.
 - `LISTEN_ADDR` (default `:8080`)
 - `AWS_REGION` or `S3_REGION` (default `eu-west-1`)
 - `AWS_ENDPOINT_URL` or `S3_ENDPOINT` (optional, for S3-compatible endpoints like MinIO)
+- `AWS_STS_ENDPOINT_URL` (optional custom endpoint for STS role assumption)
 - `S3_FORCE_PATH_STYLE` (`true` for many S3-compatible providers)
 - `S3_ENDPOINT_TLSSKIP` (`true` to skip TLS certificate verification; only use with trusted private endpoints)
 - `USE_RWG_TOKEN` (`true` to convert login credentials to an RGW auth token for the AWS Access Key field)
@@ -76,6 +78,7 @@ If cookie keys are not provided, the app generates ephemeral keys at startup (al
 ## Notes on credentials
 
 - The UI login credentials are used for all S3 operations.
+- After login, use **Assume role** to switch S3 operations to temporary role credentials. Returning to the login credentials is available from the same page.
 - When `USE_RWG_TOKEN=true`, the app generates a base64-encoded `RGW_TOKEN` payload from `AccessKey` + `SecretKey` and uses that token as the AWS Access Key.
 - Environment variables like `S3_ACCESS_KEY`/`S3_SECRET_KEY` are not required for app auth flow.
 

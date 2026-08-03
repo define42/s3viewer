@@ -11,6 +11,7 @@ func TestBuildAppAndMuxFromEnv(t *testing.T) {
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("LISTEN_ADDR", ":9999")
 	t.Setenv("AWS_ENDPOINT_URL", "http://localhost:9000")
+	t.Setenv("AWS_STS_ENDPOINT_URL", "http://localhost:9002")
 	t.Setenv("S3_FORCE_PATH_STYLE", "true")
 	t.Setenv("SECURECOOKIE_HASH_KEY", "0123456789abcdef0123456789abcdef")
 	t.Setenv("SECURECOOKIE_BLOCK_KEY", "abcdef0123456789abcdef0123456789")
@@ -35,6 +36,9 @@ func TestBuildAppAndMuxFromEnv(t *testing.T) {
 	}
 	if a.endpoint != "http://localhost:9000" {
 		t.Fatalf("unexpected endpoint: %q", a.endpoint)
+	}
+	if a.stsEndpoint != "http://localhost:9002" {
+		t.Fatalf("unexpected STS endpoint: %q", a.stsEndpoint)
 	}
 	if !a.forcePathStyle {
 		t.Fatalf("expected forcePathStyle true")
