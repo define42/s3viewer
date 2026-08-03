@@ -172,7 +172,7 @@ func TestAssumedRoleSessionCookieRoundTrip(t *testing.T) {
 	}
 }
 
-func TestExpiredAssumedRoleFallsBackToLoginCredentials(t *testing.T) {
+func TestExpiredAssumedRoleDoesNotFallBackToLoginCredentials(t *testing.T) {
 	a := newAuthUnitTestApp()
 	setReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	setRec := httptest.NewRecorder()
@@ -194,8 +194,8 @@ func TestExpiredAssumedRoleFallsBackToLoginCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get session failed: %v", err)
 	}
-	if sess.AssumedRoleARN != "" || sess.AccessKey != "ak" || sess.SecretKey != "sk" {
-		t.Fatalf("expected login credentials without assumed role, got %#v", sess)
+	if sess.AssumedRoleARN == "" || sess.AssumedAccessKey != "expired-ak" || sess.SessionToken != "expired-token" {
+		t.Fatalf("expected expired assumed credentials to remain active, got %#v", sess)
 	}
 }
 

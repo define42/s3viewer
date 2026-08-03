@@ -165,9 +165,6 @@ func (a *app) getSession(r *http.Request) (userSession, error) {
 	if err != nil {
 		return userSession{}, fmt.Errorf("session has invalid assumed role expiration")
 	}
-	if !expiresAt.After(time.Now()) {
-		return sess, nil
-	}
 
 	sess.AssumedAccessKey = strings.TrimSpace(value["assumed_access_key"])
 	sess.AssumedSecretKey = strings.TrimSpace(value["assumed_secret_key"])
